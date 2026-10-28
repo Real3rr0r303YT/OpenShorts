@@ -1,18 +1,13 @@
 package org.openshorts.ui.feed
 
 import android.annotation.SuppressLint
-import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
-import android.webkit.WebSettings
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,7 +16,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import java.io.ByteArrayInputStream
+import org.openshorts.web.AdBlockWebView
+import org.openshorts.web.AdBlockWebViewClient
 
 /** TikTok's official embed player for one video. */
 fun tikTokEmbedUrl(videoId: String): String = "https://www.tiktok.com/embed/v2/$videoId"
@@ -30,7 +26,7 @@ fun tikTokEmbedUrl(videoId: String): String = "https://www.tiktok.com/embed/v2/$
  * Plays a TikTok video in TikTok's official embed player, styled as a full-screen short:
  * - hardware-accelerated WebView, autoplay with sound, looping,
  * - only the `<video>` element is shown (object-fit: cover, black background),
- * - known analytics/ad hosts are blocked, third-party cookies are off,
+ * - ads, trackers and cookie banners are blocked/hidden by [AdBlockWebView], third-party cookies are off,
  * - [onError] fires when the page fails or no playable video appears within a few seconds,
  *   so the feed can skip to the next video.
  *
@@ -54,27 +50,9 @@ fun TikTokEmbedView(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            WebView(context).apply {
-                setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                setBackgroundColor(Color.BLACK)
-                isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = false
+            // Ad/tracker/consent blocking, banner hiding and a real mobile browser User-Agent.
+            AdBlockWebView(context).apply {
                 overScrollMode = View.OVER_SCROLL_NEVER
-                settings.apply {
-                    javaScriptEnabled = true // the embed player is a JavaScript app
-                    domStorageEnabled = true
-                    mediaPlaybackRequiresUserGesture = false
-                    allowFileAccess = false
-                    allowContentAccess = false
-                    setGeolocationEnabled(false)
-                    javaScriptCanOpenWindowsAutomatically = false
-                    setSupportMultipleWindows(false)
-                    cacheMode = WebSettings.LOAD_DEFAULT
-                    loadWithOverviewMode = true
-                    useWideViewPort = true
-                }
-                CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-                webChromeClient = WebChromeClient()
                 webViewClient = EmbedClient { currentOnError() }
                 tag = EmbedState(videoId)
                 loadUrl(tikTokEmbedUrl(videoId))
@@ -108,23 +86,15 @@ fun TikTokEmbedView(
 /** Remembers which video is loaded and whether the view was released. */
 private class EmbedState(var videoId: String, var released: Boolean = false, var ready: Boolean = false)
 
-private class EmbedClient(private val onError: () -> Unit) : WebViewClient() {
-
-    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-        val host = request?.url?.host.orEmpty()
-        return if (BLOCKED_HOSTS.any { host == it || host.endsWith(".$it") }) {
-            // Analytics/ads are answered with an empty response instead of reaching the network.
-            WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
-        } else {
-            null
-        }
-    }
+/** Keeps the ad/consent blocking of [AdBlockWebViewClient] and adds the embed-specific behaviour. */
+private class EmbedClient(private val onError: () -> Unit) : AdBlockWebViewClient() {
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean =
         // Stay on the embed: links ("Watch on TikTok", profile, …) are not opened inside the feed.
         request?.url?.toString()?.startsWith("https://www.tiktok.com/embed/") != true
 
     override fun onPageFinished(view: WebView?, url: String?) {
+        super.onPageFinished(view, url) // hides the cookie banner and remaining overlays
         if (url?.startsWith("https://www.tiktok.com/embed/") == true) view?.evaluateJavascript(FULLSCREEN_SCRIPT, null)
     }
 
@@ -168,21 +138,6 @@ private fun startWatchdog(view: WebView, onReady: () -> Unit, onError: () -> Uni
 }
 
 private const val WATCHDOG_SECONDS = 10
-
-/** Hosts the embed loads only for analytics, monitoring or ads. */
-private val BLOCKED_HOSTS = listOf(
-    "analytics.tiktok.com",
-    "analytics-sg.tiktok.com",
-    "mon.tiktokv.com",
-    "mon-va.tiktokv.com",
-    "mcs.tiktokv.com",
-    "mcs-va.tiktokv.com",
-    "log.tiktokv.com",
-    "ads.tiktok.com",
-    "google-analytics.com",
-    "googletagmanager.com",
-    "doubleclick.net",
-)
 
 private const val READY_SCRIPT =
     "(function(){var v=document.querySelector('video');return !!(v&&v.readyState>=2);})()"

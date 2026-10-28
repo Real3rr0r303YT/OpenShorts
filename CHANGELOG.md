@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `AdBlockWebView` (`org.openshorts.web`): reusable in-app browser WebView with an ad blocker –
+  blocks ads, trackers and cookie-consent platforms in `shouldInterceptRequest` (`AdBlocker`), hides remaining
+  cookie banners and ad overlays after page load (incl. TikTok's banner, also inside shadow DOM, throttled
+  MutationObserver) without giving consent, and identifies as the device's real Chrome (WebView marker removed)
+  or optionally Firefox Mobile; `AdBlockBrowser` composable
+- The TikTok embed player now uses `AdBlockWebView`
+
 ## [1.6.0]
 
 ### Added
