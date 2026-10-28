@@ -27,7 +27,7 @@ The same link is available inside the app under **Settings → Support OpenShort
 
 📦 **[Download the latest APK](https://github.com/Real3rr0r303YT/OpenShorts/releases/latest)** (Android 8.0+)
 
-Each release includes SHA-256 checksums so you can verify the file.
+Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums so you can verify the file.
 
 ## Features
 
@@ -102,8 +102,10 @@ unit tests → lint → debug & unsigned release APK. The APKs and a `SHA256SUMS
 to each workflow run as artifacts, and the checksums are printed in the run summary, so anyone can
 verify that a downloaded APK was built from the public source.
 
-Pushing a version tag (`git tag v0.2.0 && git push origin v0.2.0`) — or pushing a commit whose
-message contains `[release]` — publishes a public GitHub release with the APK automatically.
+**Releases:** pushing a version tag (`git tag v1.1.0 && git push origin v1.1.0`), publishing a
+release in the GitHub UI, or pushing a commit whose message contains `[release]` uploads the debug
+APK, the unsigned release APK and `SHA256SUMS.txt` as release assets
+(via [softprops/action-gh-release](https://github.com/softprops/action-gh-release)).
 Without a tag, the version is taken from `versionName` in `app/build.gradle.kts`.
 
 ## Project structure
