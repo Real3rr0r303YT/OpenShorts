@@ -90,11 +90,19 @@ fun CommentsSheet(video: Video, instanceUrl: String, onDismiss: () -> Unit) {
         error = false
         scope.launch {
             try {
-                val page = client.comments(instanceUrl, video.uuid, nextStart, PAGE_SIZE)
-                comments = comments + page.comments
-                total = page.total
-                nextStart += PAGE_SIZE
-                end = nextStart >= page.total
+                if (video.isYouTube) {
+                    // YouTube comments (first page) through the Piped/Invidious proxy, read-only.
+                    val page = app.youTubeClient.comments(video)
+                    comments = page.comments
+                    total = maxOf(total, page.total)
+                    end = true
+                } else {
+                    val page = client.comments(instanceUrl, video.uuid, nextStart, PAGE_SIZE)
+                    comments = comments + page.comments
+                    total = page.total
+                    nextStart += PAGE_SIZE
+                    end = nextStart >= page.total
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -153,7 +161,7 @@ fun CommentsSheet(video: Video, instanceUrl: String, onDismiss: () -> Unit) {
             }
             HorizontalDivider()
             val errorText = postError
-            if (session != null) {
+            if (session != null && !video.isYouTube) {
                 // Logged in: write a comment through the user's own PeerTube server.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -214,7 +222,7 @@ fun CommentsSheet(video: Video, instanceUrl: String, onDismiss: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(R.string.comments_login_hint),
+                    text = stringResource(if (video.isYouTube) R.string.comments_youtube_hint else R.string.comments_login_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

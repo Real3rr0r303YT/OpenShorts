@@ -37,6 +37,7 @@ class SettingsRepository(context: Context) {
                 instanceUrl = prefs[INSTANCE_URL] ?: defaults.instanceUrl,
                 shortsOnly = prefs[SHORTS_ONLY] ?: defaults.shortsOnly,
                 loopVideos = prefs[LOOP_VIDEOS] ?: defaults.loopVideos,
+                youTubeEnabled = prefs[YOUTUBE_ENABLED] ?: defaults.youTubeEnabled,
             )
         }
 
@@ -55,6 +56,7 @@ class SettingsRepository(context: Context) {
     suspend fun setInstanceUrl(value: String) = update { it[INSTANCE_URL] = value }
     suspend fun setShortsOnly(value: Boolean) = update { it[SHORTS_ONLY] = value }
     suspend fun setLoopVideos(value: Boolean) = update { it[LOOP_VIDEOS] = value }
+    suspend fun setYouTubeEnabled(value: Boolean) = update { it[YOUTUBE_ENABLED] = value }
 
     private suspend fun update(block: (MutablePreferences) -> Unit) {
         dataStore.edit { block(it) }
@@ -72,6 +74,7 @@ class SettingsRepository(context: Context) {
         val INSTANCE_URL = stringPreferencesKey("instance_url")
         val SHORTS_ONLY = booleanPreferencesKey("shorts_only")
         val LOOP_VIDEOS = booleanPreferencesKey("loop_videos")
+        val YOUTUBE_ENABLED = booleanPreferencesKey("youtube_enabled")
     }
 }
 

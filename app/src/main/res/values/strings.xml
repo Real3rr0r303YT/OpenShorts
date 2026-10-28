@@ -219,4 +219,13 @@
     <string name="upload_target">Uploading to @%1$s</string>
     <string name="tab_for_you">For You</string>
     <string name="search_trending">Trending now</string>
+    <!-- YouTube Shorts -->
+    <string name="platform_peertube">PeerTube</string>
+    <string name="platform_youtube">YouTube Shorts</string>
+    <string name="youtube_enabled">YouTube Shorts</string>
+    <string name="youtube_enabled_summary">Adds a YouTube Shorts feed. Videos are loaded through public Piped/Invidious proxies, never directly from YouTube or Google. Likes and follows stay on your device.</string>
+    <string name="comments_youtube_hint">YouTube comments are shown read-only.</string>
+    <string name="upload_short_ok">Vertical and up to 60 seconds – a perfect short.</string>
+    <string name="upload_short_landscape">This video is landscape. Shorts look best in portrait (9:16).</string>
+    <string name="upload_short_long">This video is longer than 60 seconds. It will be uploaded as a normal video.</string>
 </resources>

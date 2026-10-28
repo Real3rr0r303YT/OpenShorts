@@ -2,6 +2,7 @@ package org.openshorts.ui.upload
 
 import android.app.Application
 import android.net.Uri
+import android.media.MediaMetadataRetriever
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,7 +24,19 @@ import java.io.IOException
 
 enum class Privacy(val value: Int) { PUBLIC(1), UNLISTED(2), PRIVATE(3) }
 
-data class PickedVideo(val uri: Uri, val fileName: String, val size: Long, val mimeType: String)
+data class PickedVideo(
+    val uri: Uri,
+    val fileName: String,
+    val size: Long,
+    val mimeType: String,
+    /** Display size (rotation applied) and length; 0 if unknown. */
+    val width: Int = 0,
+    val height: Int = 0,
+    val durationMs: Long = 0,
+) {
+    val isVertical: Boolean get() = width > 0 && height > width
+    val isShort: Boolean get() = durationMs in 1..60_000
+}
 
 sealed interface UploadPhase {
     data object Editing : UploadPhase
@@ -145,6 +158,23 @@ class UploadViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
         if (size <= 0) return null
-        return PickedVideo(uri, name, size, resolver.getType(uri) ?: "video/mp4")
+        // Read resolution, rotation and length to tell the user whether this is a real short.
+        val retriever = MediaMetadataRetriever()
+        var width = 0
+        var height = 0
+        var duration = 0L
+        try {
+            retriever.setDataSource(app, uri)
+            width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+            if (rotation == 90 || rotation == 270) width = height.also { height = width }
+            duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        } catch (_: Exception) {
+            // Unknown format: upload anyway, the server decides.
+        } finally {
+            retriever.release()
+        }
+        return PickedVideo(uri, name, size, resolver.getType(uri) ?: "video/mp4", width, height, duration)
     }
 }

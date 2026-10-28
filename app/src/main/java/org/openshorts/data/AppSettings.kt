@@ -38,6 +38,8 @@ data class AppSettings(
     val instanceUrl: String = BuildConfig.DEFAULT_INSTANCE,
     val shortsOnly: Boolean = true,
     val loopVideos: Boolean = true,
+    /** Offers the "YouTube Shorts" feed (via Piped/Invidious proxies). */
+    val youTubeEnabled: Boolean = true,
 ) {
     fun isDark(systemDark: Boolean): Boolean = when (themeMode) {
         ThemeMode.SYSTEM -> systemDark

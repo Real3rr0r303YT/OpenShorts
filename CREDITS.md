@@ -24,6 +24,8 @@ Apache 2.0 licensed code is compatible with the GNU GPL v3.0 under which OpenSho
 ## Platforms & inspiration
 
 - [PeerTube](https://joinpeertube.org/) by Framasoft – the decentralized video platform OpenShorts connects to
+- [Piped](https://github.com/TeamPiped/Piped) and [Invidious](https://invidious.io) – privacy-friendly YouTube
+  front ends whose public APIs power the optional YouTube Shorts feed
 - [NewPipe](https://newpipe.net/) and [LibreTube](https://libretube.dev/) – for showing what privacy-friendly video clients can be
 
 ## Fonts

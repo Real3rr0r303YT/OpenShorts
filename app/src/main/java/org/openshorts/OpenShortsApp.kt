@@ -10,6 +10,7 @@ import org.openshorts.data.SettingsRepository
 import org.openshorts.data.peertube.Http
 import org.openshorts.data.peertube.PeerTubeAccountApi
 import org.openshorts.data.peertube.PeerTubeClient
+import org.openshorts.data.youtube.YouTubeClient
 
 /**
  * Application entry point and minimal dependency container.
@@ -31,13 +32,21 @@ class OpenShortsApp : Application() {
 
     val peerTubeClient: PeerTubeClient by lazy { PeerTubeClient(userAgent) }
 
-    /** PeerTube login, synced interactions and uploads. */
-    val accountRepository: AccountRepository by lazy {
-        val json = Json {
+    private val json: Json by lazy {
+        Json {
             ignoreUnknownKeys = true
             coerceInputValues = true
             explicitNulls = false
         }
-        AccountRepository(this, PeerTubeAccountApi(Http(userAgent, json), json, userAgent), profileRepository)
     }
+
+    private val http: Http by lazy { Http(userAgent, json) }
+
+    /** PeerTube login, synced interactions and uploads. */
+    val accountRepository: AccountRepository by lazy {
+        AccountRepository(this, PeerTubeAccountApi(http, json, userAgent), profileRepository)
+    }
+
+    /** YouTube Shorts through public Piped/Invidious proxies. */
+    val youTubeClient: YouTubeClient by lazy { YouTubeClient(http, json) }
 }

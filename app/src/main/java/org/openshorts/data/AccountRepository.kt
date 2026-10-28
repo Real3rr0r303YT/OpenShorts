@@ -22,6 +22,7 @@ import org.openshorts.data.peertube.PeerTubeApiException
 import org.openshorts.data.peertube.UploadMetadata
 import org.openshorts.data.peertube.UploadedVideoRef
 import org.openshorts.data.peertube.Video
+import org.openshorts.data.peertube.YOUTUBE_UUID_PREFIX
 import java.io.InputStream
 
 /** The PeerTube account the user is logged in with. */
@@ -241,11 +242,11 @@ class AccountRepository(
         }
 
         val likedUuids = serverLikes.mapTo(HashSet()) { it.uuid }
-        profiles.likedVideos.first().filter { it.uuid !in likedUuids }.take(PUSH_LIMIT).forEach { push { setLiked(it, true) } }
+        profiles.likedVideos.first().filter { !it.isYouTube && it.uuid !in likedUuids }.take(PUSH_LIMIT).forEach { push { setLiked(it, true) } }
         val savedUuids = serverSaved.mapTo(HashSet()) { it.uuid }
-        profiles.savedVideos.first().filter { it.uuid !in savedUuids }.take(PUSH_LIMIT).forEach { push { setSaved(it, true) } }
+        profiles.savedVideos.first().filter { !it.isYouTube && it.uuid !in savedUuids }.take(PUSH_LIMIT).forEach { push { setSaved(it, true) } }
         val followed = serverFollowing.mapTo(HashSet()) { it.handle }
-        profiles.following.first().filter { it.handle !in followed }.take(PUSH_LIMIT).forEach { push { setFollowing(it, true) } }
+        profiles.following.first().filter { !it.handle.startsWith(YOUTUBE_UUID_PREFIX) && it.handle !in followed }.take(PUSH_LIMIT).forEach { push { setFollowing(it, true) } }
 
         runCatching { refreshAccount() }
         return SyncResult(pulled, pushed, failed)

@@ -65,7 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.openshorts.R
-import org.openshorts.data.SearchQuery
+import org.openshorts.data.TrendCategory
 import org.openshorts.data.peertube.Video
 
 /** Full-screen vertical video feed: swipe to switch videos, tap to pause, double-tap to like. */
@@ -82,6 +82,7 @@ fun FeedScreen(
     val savedIds by viewModel.savedIds.collectAsStateWithLifecycle()
     val followed by viewModel.followedHandles.collectAsStateWithLifecycle()
     val loggedIn by viewModel.loggedIn.collectAsStateWithLifecycle()
+    val youTubeEnabled by viewModel.youTubeEnabled.collectAsStateWithLifecycle()
     val snackbarHost = remember { SnackbarHostState() }
     val syncErrorText = stringResource(R.string.sync_error)
     LaunchedEffect(viewModel) {
@@ -167,8 +168,19 @@ fun FeedScreen(
             FeedHeader(
                 content = state.content,
                 loggedIn = loggedIn,
+                youTubeEnabled = youTubeEnabled,
+                onSelectPlatform = { platform ->
+                    if (platform == viewModel.platform) viewModel.refresh() else viewModel.selectPlatform(platform)
+                },
                 onSelectTab = { tab ->
                     if (state.content == FeedContent.Tab(tab)) viewModel.refresh() else viewModel.selectTab(tab)
+                },
+                onSelectYouTubeCategory = { category ->
+                    if (state.content == FeedContent.YouTube(category = category)) {
+                        viewModel.refresh()
+                    } else {
+                        viewModel.selectYouTubeCategory(category)
+                    }
                 },
                 onOpenSearch = { searchOpen = true },
                 onClearSearch = viewModel::clearSearch,
@@ -210,7 +222,7 @@ fun FeedScreen(
             onToggleFollow = { viewModel.toggleFollow(video) },
             onShowVideos = {
                 creatorFor = null
-                video.toCreator()?.let { viewModel.search(SearchQuery.Channel(it.handle)) }
+                video.toCreator()?.let(viewModel::openCreator)
             },
             onMessage = {
                 creatorFor = null
@@ -293,65 +305,121 @@ private fun VideoPager(
     }
 }
 
-/** Tabs (Tech, Trending, …) plus search button, or the active search with a close button. */
+/**
+ * Feed header: the platform switch (PeerTube | YouTube Shorts), the tabs of that platform and the
+ * search button – or, while searching, the active search with a close button.
+ */
 @Composable
 private fun FeedHeader(
     content: FeedContent,
     loggedIn: Boolean,
+    youTubeEnabled: Boolean,
+    onSelectPlatform: (FeedPlatform) -> Unit,
     onSelectTab: (FeedTab) -> Unit,
+    onSelectYouTubeCategory: (TrendCategory?) -> Unit,
     onOpenSearch: () -> Unit,
     onClearSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-        if (content is FeedContent.Tab) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(start = 8.dp, end = 44.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                FeedTab.entries.filter { loggedIn || !it.requiresLogin }.forEach { tab ->
-                    TabLabel(
-                        text = stringResource(tab.labelRes),
-                        selected = tab == content.tab,
-                        onClick = { onSelectTab(tab) },
+    val platform = if (content.isYouTube) FeedPlatform.YOUTUBE else FeedPlatform.PEERTUBE
+    val browsing = content is FeedContent.Tab || (content is FeedContent.YouTube && content.query == null)
+    Column(modifier = modifier.padding(horizontal = 8.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (youTubeEnabled && browsing) {
+            PlatformSwitch(selected = platform, onSelect = onSelectPlatform)
+        }
+        Box(Modifier.fillMaxWidth()) {
+            if (browsing) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(start = 8.dp, end = 44.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    if (content is FeedContent.YouTube) {
+                        TabLabel(
+                            text = stringResource(R.string.tab_for_you),
+                            selected = content.category == null,
+                            onClick = { onSelectYouTubeCategory(null) },
+                        )
+                        TrendCategory.entries.filter { it != TrendCategory.SHORTS }.forEach { category ->
+                            TabLabel(
+                                text = category.label,
+                                selected = content.category == category,
+                                onClick = { onSelectYouTubeCategory(category) },
+                            )
+                        }
+                    } else if (content is FeedContent.Tab) {
+                        FeedTab.entries.filter { loggedIn || !it.requiresLogin }.forEach { tab ->
+                            TabLabel(
+                                text = stringResource(tab.labelRes),
+                                selected = tab == content.tab,
+                                onClick = { onSelectTab(tab) },
+                            )
+                        }
+                    }
+                }
+                IconButton(onClick = onOpenSearch, modifier = Modifier.align(Alignment.CenterEnd)) {
+                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search), tint = Color.White)
+                }
+            } else {
+                val title = when (content) {
+                    is FeedContent.Search -> content.query.text
+                    is FeedContent.Collection -> content.title
+                    is FeedContent.YouTube -> "▶ " + content.query.orEmpty()
+                    is FeedContent.Tab -> ""
+                }
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .clickableNoRipple(onOpenSearch)
+                        .padding(start = 14.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.Search, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
+                    IconButton(onClick = onClearSearch) {
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.search_clear), tint = Color.White)
+                    }
                 }
             }
-            IconButton(onClick = onOpenSearch, modifier = Modifier.align(Alignment.CenterEnd)) {
-                Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search), tint = Color.White)
-            }
-        } else {
-            val title = when (content) {
-                is FeedContent.Search -> content.query.text
-                is FeedContent.Collection -> content.title
-                is FeedContent.Tab -> ""
-            }
-            Row(
+        }
+    }
+}
+
+/** Pill switch between the PeerTube network and YouTube Shorts. */
+@Composable
+private fun PlatformSwitch(selected: FeedPlatform, onSelect: (FeedPlatform) -> Unit) {
+    Row(
+        modifier = Modifier
+            .padding(top = 4.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Color.Black.copy(alpha = 0.35f))
+            .padding(3.dp),
+    ) {
+        FeedPlatform.entries.forEach { platform ->
+            val isSelected = platform == selected
+            Text(
+                text = stringResource(if (platform == FeedPlatform.PEERTUBE) R.string.platform_peertube else R.string.platform_youtube),
+                color = if (isSelected) Color.Black else Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier
-                    .align(Alignment.Center)
                     .clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .clickableNoRipple(onOpenSearch)
-                    .padding(start = 14.dp, end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Filled.Search, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = title,
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                IconButton(onClick = onClearSearch) {
-                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.search_clear), tint = Color.White)
-                }
-            }
+                    .background(if (isSelected) Color.White else Color.Transparent)
+                    .clickableNoRipple { onSelect(platform) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            )
         }
     }
 }

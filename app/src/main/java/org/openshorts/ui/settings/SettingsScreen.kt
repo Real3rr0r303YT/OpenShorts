@@ -255,6 +255,12 @@ fun SettingsScreen(
                 checked = settings.loopVideos,
                 onCheckedChange = viewModel::setLoopVideos,
             )
+            SwitchRow(
+                title = R.string.youtube_enabled,
+                summary = R.string.youtube_enabled_summary,
+                checked = settings.youTubeEnabled,
+                onCheckedChange = viewModel::setYouTubeEnabled,
+            )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(R.string.section_about)

@@ -33,4 +33,6 @@ credit you in the release notes unless you prefer to stay anonymous.
   `EncryptedSharedPreferences` (AES-256, key in the Android Keystore), excluded from all backups and revoked on
   logout. Tokens are only ever sent to the server they were issued by, over HTTPS.
 - Settings and the local profile live in DataStore files that are excluded from cloud backups.
+- The optional YouTube Shorts feed only contacts public Piped/Invidious instances (HTTPS); those instances see the
+  search terms and which videos are played, YouTube/Google itself is never contacted by the app.
 - Release APKs are built publicly by GitHub Actions; SHA-256 checksums are published with every run.

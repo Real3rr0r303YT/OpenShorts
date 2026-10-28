@@ -38,6 +38,8 @@ Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums s
 - 🛡️ **Tech & cybersecurity first** – the default **Tech** tab shows videos tagged
   `cybersecurity`, `hacking`, `linux`, `infosec`, `programming` and `tech`; tech-focused PeerTube servers are offered
   as quick picks. Tabs for Trending, Latest and Local are one tap away.
+- ▶️ **YouTube Shorts (optional)** – a second feed via public **Piped/Invidious** proxies, switchable in the header
+  (PeerTube | YouTube Shorts) with For You, Edits, Cybersecurity, Gaming, Tech and Anime tabs
 - 🔍 **Search** – free text, `#tags` and `@creator@server`, live creator suggestions, tech topic shortcuts
 - ❤️ **Action rail** on every video – glowing buttons with touch feedback and haptics: creator avatar with animated
   ring and follow button, like with particle burst and live counter, comments, save, share, spinning creator disc
@@ -67,6 +69,15 @@ Log in with an account of **any PeerTube server** (Settings → PeerTube account
   (key in the Android Keystore) and excluded from backups; logging out revokes the token on the server.
 - When logged in, likes, follows (subscriptions) and bookmarks ("watch later") are sent to your server,
   you can write comments, see a "Following" feed and upload shorts with title, description, tags and visibility.
+
+### YouTube Shorts via Piped / Invidious
+
+The YouTube Shorts feed uses public [Piped](https://github.com/TeamPiped/Piped) and
+[Invidious](https://invidious.io) instances (e.g. `pipedapi.kavin.rocks`, `invidious.nerdvpn.de`). Search results,
+thumbnails and video streams come from these proxies; OpenShorts never talks to YouTube or Google directly.
+Public instances are run by volunteers and are often rate-limited or blocked by YouTube, so the app tries several
+of them in order. If none responds, the YouTube feed shows an error while PeerTube keeps working.
+Likes, saves and follows of YouTube videos are stored only on the device. The source can be turned off in the settings.
 
 ### Current limitations (honest list)
 

@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.openshorts.data.AppSettings
-import org.openshorts.data.SearchQuery
 import org.openshorts.ui.account.AccountViewModel
 import org.openshorts.ui.account.LoginScreen
 import org.openshorts.ui.chat.ChatScreen
@@ -198,7 +197,7 @@ private fun OpenShortsRoot(
                                     tab = Tab.HOME
                                 },
                                 onOpenCreator = { creator ->
-                                    feedViewModel.search(SearchQuery.Channel(creator.handle))
+                                    feedViewModel.openCreator(creator)
                                     tab = Tab.HOME
                                 },
                             )

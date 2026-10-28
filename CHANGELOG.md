@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.4]
+
+### Added
+- **YouTube Shorts** as a second feed source, via public **Piped** and **Invidious** proxies
+  (OpenShorts never contacts YouTube/Google directly; several instances are tried in order)
+- Feed header switch **PeerTube | YouTube Shorts**; YouTube tabs: For You (mix of Shorts topics), Edits,
+  Cybersecurity, Gaming, Tech, Anime
+- Search and trend badges work on the selected platform; YouTube Shorts play in the same pager
+  (pre-buffered, vertical, looping)
+- Read-only YouTube comments; likes, saves and follows of YouTube videos stay on the device
+- Settings switch to turn the YouTube Shorts source off
+- Upload: the picked video is checked for portrait format and length (≤ 60 s) with a hint if it is not a short
+
 ## [1.0.3]
 
 ### Feed & "For You"

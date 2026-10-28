@@ -31,6 +31,9 @@ import kotlinx.coroutines.launch
 import org.openshorts.OpenShortsApp
 import org.openshorts.data.SHORT_CLIP_MAX_SECONDS
 import org.openshorts.data.SearchQuery
+import org.openshorts.data.TrendCategory
+import org.openshorts.data.peertube.YOUTUBE_UUID_PREFIX
+import org.openshorts.data.youtube.YouTubeCursor
 import org.openshorts.data.TECH_TAGS
 import org.openshorts.data.peertube.Creator
 import org.openshorts.data.peertube.Video
@@ -55,9 +58,18 @@ enum class FeedTab(
     LOCAL("-publishedAt", true),
 }
 
+/** The two content sources offered in the feed header. */
+enum class FeedPlatform { PEERTUBE, YOUTUBE }
+
 /** What the feed is currently showing. */
 sealed interface FeedContent {
     data class Tab(val tab: FeedTab) : FeedContent
+
+    /**
+     * YouTube Shorts via Piped/Invidious: a [category], a free [query], or – with both null –
+     * the "For You" mix that rotates through several Shorts searches.
+     */
+    data class YouTube(val category: TrendCategory? = null, val query: String? = null) : FeedContent
 
     data class Search(val query: SearchQuery) : FeedContent
 
@@ -93,6 +105,12 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private val client = app.peerTubeClient
     private val profiles = app.profileRepository
     private val accounts = app.accountRepository
+    private val youTube = app.youTubeClient
+
+    /** Whether the "YouTube Shorts" source is enabled in the settings. */
+    val youTubeEnabled: StateFlow<Boolean> = app.settingsRepository.settings
+        .map { it.youTubeEnabled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /** True while logged in with a PeerTube account (likes etc. are then synced). */
     val loggedIn: StateFlow<Boolean> = accounts.session
@@ -141,6 +159,11 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Category searches fall back to a short-clip text search when the tags find nothing. */
     private var categoryFallback = false
+
+    // YouTube pagination: one cursor per query; the "For You" mix rotates through the queries.
+    private val ytCursors = HashMap<String, YouTubeCursor>()
+    private val ytExhausted = HashSet<String>()
+    private var ytRotation = 0
     private var emptyLoads = 0
 
     private val activePlayer: ExoPlayer get() = players[_state.value.activePlayer]
@@ -167,7 +190,12 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             combine(app.settingsRepository.settings, selectedContent) { settings, content ->
-                FeedSource(settings.instanceUrl, settings.shortsOnly, content)
+                val allowed = if (content is FeedContent.YouTube && !settings.youTubeEnabled) {
+                    FeedContent.Tab(FeedTab.FOR_YOU)
+                } else {
+                    content
+                }
+                FeedSource(settings.instanceUrl, settings.shortsOnly, allowed)
             }
                 .distinctUntilChanged()
                 .collect { reset(it) }
@@ -196,8 +224,42 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         selectedContent.value = FeedContent.Tab(tab)
     }
 
+    /** Switches between the PeerTube network and the YouTube Shorts feed. */
+    fun selectPlatform(platform: FeedPlatform) {
+        selectedContent.value = when (platform) {
+            FeedPlatform.PEERTUBE -> FeedContent.Tab(FeedTab.FOR_YOU)
+            FeedPlatform.YOUTUBE -> FeedContent.YouTube()
+        }
+    }
+
+    fun selectYouTubeCategory(category: TrendCategory?) {
+        selectedContent.value = FeedContent.YouTube(category = category)
+    }
+
+    /** The platform the feed currently shows; searches go to the same platform. */
+    val platform: FeedPlatform
+        get() = if (_state.value.content.isYouTube) FeedPlatform.YOUTUBE else FeedPlatform.PEERTUBE
+
     fun search(query: SearchQuery) {
-        selectedContent.value = FeedContent.Search(query)
+        selectedContent.value = if (platform == FeedPlatform.YOUTUBE) {
+            when (query) {
+                is SearchQuery.Category -> FeedContent.YouTube(category = query.category)
+                is SearchQuery.Tag -> FeedContent.YouTube(query = query.tag)
+                is SearchQuery.Channel -> FeedContent.YouTube(query = query.handle.substringBefore('@'))
+                is SearchQuery.Text -> FeedContent.YouTube(query = query.text)
+            }
+        } else {
+            FeedContent.Search(query)
+        }
+    }
+
+    /** Opens a creator's videos on the platform the creator belongs to. */
+    fun openCreator(creator: Creator) {
+        selectedContent.value = if (creator.handle.startsWith(YOUTUBE_UUID_PREFIX)) {
+            FeedContent.YouTube(query = creator.displayName)
+        } else {
+            FeedContent.Search(SearchQuery.Channel(creator.handle))
+        }
     }
 
     /** Plays a fixed list of videos (liked, saved, …) starting at [startIndex]. */
@@ -206,9 +268,9 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         selectedContent.value = FeedContent.Collection(title, videos, startIndex.coerceIn(videos.indices))
     }
 
-    /** Leaves search / collection mode and returns to the default tab. */
+    /** Leaves search / collection mode and returns to the default tab of the current platform. */
     fun clearSearch() {
-        selectedContent.value = FeedContent.Tab(FeedTab.FOR_YOU)
+        selectedContent.value = if (platform == FeedPlatform.YOUTUBE) FeedContent.YouTube() else FeedContent.Tab(FeedTab.FOR_YOU)
     }
 
     /** Pull-to-refresh / tapping the active tab again. */
@@ -221,6 +283,9 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         nextStart = 0
         categoryFallback = false
         emptyLoads = 0
+        ytCursors.clear()
+        ytExhausted.clear()
+        ytRotation = 0
         streamCache.clear()
         loadJob?.cancel()
         playJob?.cancel()
@@ -261,10 +326,14 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 var pages = 0
                 // A page may contain few short clips, so fetch a few pages per load.
                 while (batch.size < MIN_BATCH && !end && pages < MAX_PAGES_PER_LOAD) {
-                    val page = fetchPage(src, nextStart)
+                    val yt = src.content as? FeedContent.YouTube
+                    val page = if (yt != null) {
+                        fetchYouTube(yt).also { end = it.second }.first
+                    } else {
+                        fetchPage(src, nextStart).also { end = it.size < PAGE_SIZE }
+                    }
                     nextStart += PAGE_SIZE
                     pages++
-                    end = page.size < PAGE_SIZE
                     batch += rankShorts(page, shortsOnly = src.shortsOnly)
                     val content = src.content
                     if (end && batch.isEmpty() && content is FeedContent.Search &&
@@ -296,6 +365,18 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Fetches the next YouTube page; returns the videos and whether nothing more can be loaded. */
+    private suspend fun fetchYouTube(content: FeedContent.YouTube): Pair<List<Video>, Boolean> {
+        val queries = youTubeQueries(content)
+        val open = queries.filter { it !in ytExhausted }
+        if (open.isEmpty()) return emptyList<Video>() to true
+        val query = open[ytRotation++ % open.size]
+        val page = youTube.searchShorts(query, ytCursors[query])
+        val next = page.next
+        if (next == null) ytExhausted += query else ytCursors[query] = next
+        return page.videos to (ytExhausted.size == queries.size)
+    }
+
     private suspend fun fetchPage(src: FeedSource, start: Int): List<Video> {
         // Searches ask the server for short clips directly when "shorts only" is on.
         val maxDuration = if (src.shortsOnly) SHORT_CLIP_MAX_SECONDS else null
@@ -318,7 +399,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 is SearchQuery.Channel -> client.channelVideos(src.instanceUrl, query.handle, start, PAGE_SIZE)
             }
-            is FeedContent.Collection -> emptyList()
+            is FeedContent.Collection, is FeedContent.YouTube -> emptyList()
         }
     }
 
@@ -393,12 +474,16 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun resolveStream(instanceUrl: String, uuid: String): String? =
-        streamCache[uuid]
-            ?: runCatching { client.streamUrl(instanceUrl, uuid) }
+    private suspend fun resolveStream(instanceUrl: String, uuid: String): String? {
+        val video = _state.value.videos.firstOrNull { it.uuid == uuid }
+        return streamCache[uuid]
+            ?: runCatching {
+                if (video?.isYouTube == true) youTube.streamUrl(video) else client.streamUrl(instanceUrl, uuid)
+            }
                 .onFailure { if (it is CancellationException) throw it }
                 .getOrNull()
                 ?.also { streamCache[uuid] = it }
+    }
 
     fun togglePlayPause() {
         val paused = !_state.value.userPaused
@@ -410,7 +495,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         val like = video.uuid !in likedIds.value
         viewModelScope.launch {
             profiles.toggleLike(video)
-            syncToServer { accounts.setLiked(video, like) }
+            if (!video.isYouTube) syncToServer { accounts.setLiked(video, like) }
         }
     }
 
@@ -423,7 +508,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         val save = video.uuid !in savedIds.value
         viewModelScope.launch {
             profiles.toggleSaved(video)
-            syncToServer { accounts.setSaved(video, save) }
+            if (!video.isYouTube) syncToServer { accounts.setSaved(video, save) }
         }
     }
 
@@ -432,7 +517,8 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         val follow = creator.handle !in followedHandles.value
         viewModelScope.launch {
             profiles.toggleFollow(creator)
-            syncToServer { accounts.setFollowing(creator, follow) }
+            // YouTube creators are followed locally only.
+            if (!video.isYouTube) syncToServer { accounts.setFollowing(creator, follow) }
         }
     }
 
@@ -467,6 +553,18 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         const val MAX_EMPTY_LOADS = 3
     }
 }
+
+/** YouTube searches; the "For You" mix rotates through several Shorts topics. */
+internal fun youTubeQueries(content: FeedContent.YouTube): List<String> = when {
+    content.query != null -> listOf("${content.query} #shorts")
+    content.category != null -> listOf("${content.category.label} #shorts")
+    else -> listOf("#shorts") + TrendCategory.entries.filter { it != TrendCategory.SHORTS }.map { "${it.label} #shorts" }
+}
+
+/** True for content that comes from YouTube. */
+val FeedContent.isYouTube: Boolean
+    get() = this is FeedContent.YouTube ||
+        (this is FeedContent.Collection && videos.isNotEmpty() && videos.all { it.isYouTube })
 
 /** The creator of [video] as a followable [Creator], if the channel is known. */
 fun Video.toCreator(): Creator? {

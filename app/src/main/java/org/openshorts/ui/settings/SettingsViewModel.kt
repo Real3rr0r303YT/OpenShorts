@@ -49,6 +49,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
     fun setShortsOnly(value: Boolean) = launch { repository.setShortsOnly(value) }
     fun setLoopVideos(value: Boolean) = launch { repository.setLoopVideos(value) }
+    fun setYouTubeEnabled(value: Boolean) = launch { repository.setYouTubeEnabled(value) }
 
     /** Returns false if [input] is not a valid HTTPS instance URL. */
     fun setInstanceUrl(input: String): Boolean {

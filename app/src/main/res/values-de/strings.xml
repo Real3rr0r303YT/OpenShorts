@@ -217,4 +217,13 @@
     <string name="upload_target">Upload zu @%1$s</string>
     <string name="tab_for_you">Für dich</string>
     <string name="search_trending">Gerade im Trend</string>
+    <!-- YouTube Shorts -->
+    <string name="platform_peertube">PeerTube</string>
+    <string name="platform_youtube">YouTube Shorts</string>
+    <string name="youtube_enabled">YouTube Shorts</string>
+    <string name="youtube_enabled_summary">Fügt einen YouTube-Shorts-Feed hinzu. Videos werden über öffentliche Piped-/Invidious-Proxys geladen, nie direkt von YouTube oder Google. Likes und Abos bleiben auf deinem Gerät.</string>
+    <string name="comments_youtube_hint">YouTube-Kommentare werden nur angezeigt.</string>
+    <string name="upload_short_ok">Hochformat und bis 60 Sekunden – ein perfekter Short.</string>
+    <string name="upload_short_landscape">Dieses Video ist im Querformat. Shorts wirken am besten hochkant (9:16).</string>
+    <string name="upload_short_long">Dieses Video ist länger als 60 Sekunden und wird als normales Video hochgeladen.</string>
 </resources>

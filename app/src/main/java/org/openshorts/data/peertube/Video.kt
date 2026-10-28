@@ -29,10 +29,22 @@ data class Video(
     val id: Long = 0,
     /** Width / height as reported by PeerTube ≥ 6.1; null if unknown. */
     val aspectRatio: Float? = null,
+    /** Where the video comes from: [PLATFORM_PEERTUBE] or [PLATFORM_YOUTUBE]. */
+    val platform: String = PLATFORM_PEERTUBE,
 ) {
+    /** YouTube videos are played through a Piped/Invidious proxy; likes etc. stay local. */
+    val isYouTube: Boolean get() = platform == PLATFORM_YOUTUBE
+
+    /** The YouTube video id for [isYouTube] videos. */
+    val youTubeId: String get() = uuid.removePrefix(YOUTUBE_UUID_PREFIX)
+
     /** Portrait clip (9:16 and similar), the native short-video format. */
     val isVertical: Boolean get() = aspectRatio?.let { it < 0.9f } ?: false
 }
+
+const val PLATFORM_PEERTUBE = "peertube"
+const val PLATFORM_YOUTUBE = "youtube"
+const val YOUTUBE_UUID_PREFIX = "yt:"
 
 /** A (top-level) comment, already converted to plain text. */
 data class Comment(

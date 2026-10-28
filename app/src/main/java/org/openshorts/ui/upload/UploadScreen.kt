@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -66,6 +67,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.openshorts.R
 import org.openshorts.data.TECH_TAGS
 import org.openshorts.data.UploadValidation
+import org.openshorts.ui.components.formatDuration
 
 /** "+ Upload": publish a vertical short from the gallery to the user's PeerTube channel. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -152,14 +154,21 @@ fun UploadScreen(
                             )
                         } else {
                             Text(video.fileName, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            val details = buildList {
+                                if (video.width > 0) add("${video.width}×${video.height}")
+                                if (video.durationMs > 0) add(formatDuration((video.durationMs / 1000).toInt()))
+                                add(Formatter.formatShortFileSize(context, video.size))
+                            }.joinToString(" · ")
                             Text(
-                                Formatter.formatShortFileSize(context, video.size),
+                                details,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
+
+                state.video?.let { video -> ShortCheck(video) }
 
                 OutlinedTextField(
                     value = state.title,
@@ -301,3 +310,25 @@ private val Privacy.labelRes: Int
         Privacy.UNLISTED -> R.string.privacy_unlisted
         Privacy.PRIVATE -> R.string.privacy_private
     }
+
+/** Shows whether the picked video is a real short (vertical, up to 60 seconds). */
+@Composable
+private fun ShortCheck(video: PickedVideo) {
+    if (video.width <= 0 && video.durationMs <= 0) return
+    val ok = video.isVertical && video.isShort
+    val text = when {
+        ok -> stringResource(R.string.upload_short_ok)
+        !video.isVertical && video.width > 0 -> stringResource(R.string.upload_short_landscape)
+        else -> stringResource(R.string.upload_short_long)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            if (ok) Icons.Filled.CheckCircle else Icons.Filled.Info,
+            contentDescription = null,
+            tint = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall)
+    }
+}
