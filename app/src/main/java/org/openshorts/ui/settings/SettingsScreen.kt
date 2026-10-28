@@ -89,6 +89,7 @@ import org.openshorts.data.AppSettings
 import org.openshorts.data.ColorPalette
 import org.openshorts.data.FontChoice
 import org.openshorts.data.ThemeMode
+import org.openshorts.data.YouTubeInstanceType
 import org.openshorts.data.PRESET_INSTANCES
 import org.openshorts.ui.account.AccountSummary
 import org.openshorts.ui.account.AccountViewModel
@@ -261,6 +262,13 @@ fun SettingsScreen(
                 checked = settings.youTubeEnabled,
                 onCheckedChange = viewModel::setYouTubeEnabled,
             )
+            if (settings.youTubeEnabled) {
+                YouTubeInstanceField(
+                    currentUrl = settings.youTubeCustomInstance.orEmpty(),
+                    currentType = settings.youTubeCustomType,
+                    onSave = viewModel::setYouTubeCustomInstance,
+                )
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(R.string.section_about)
@@ -462,6 +470,64 @@ private fun InstanceField(currentUrl: String, onSave: (String) -> Boolean) {
                 Text(stringResource(R.string.reset))
             }
             Button(onClick = save, enabled = text.trim() != currentUrl) {
+                Text(stringResource(R.string.save))
+            }
+        }
+    }
+}
+
+/** The user's own Piped/Invidious instance, tried before the public ones. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun YouTubeInstanceField(
+    currentUrl: String,
+    currentType: YouTubeInstanceType,
+    onSave: (String, YouTubeInstanceType) -> Boolean,
+) {
+    var text by rememberSaveable(currentUrl) { mutableStateOf(currentUrl) }
+    var type by rememberSaveable(currentType) { mutableStateOf(currentType) }
+    var invalid by rememberSaveable { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val save = {
+        invalid = !onSave(text, type)
+        if (!invalid) focusManager.clearFocus()
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingLabel(R.string.youtube_instance)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            YouTubeInstanceType.entries.forEachIndexed { index, entry ->
+                SegmentedButton(
+                    selected = type == entry,
+                    onClick = { type = entry },
+                    shape = SegmentedButtonDefaults.itemShape(index, YouTubeInstanceType.entries.size),
+                ) { Text(if (entry == YouTubeInstanceType.PIPED) "Piped" else "Invidious") }
+            }
+        }
+        OutlinedTextField(
+            value = text,
+            onValueChange = {
+                text = it.trim()
+                invalid = false
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.youtube_instance_url)) },
+            placeholder = { Text(if (type == YouTubeInstanceType.PIPED) "https://pipedapi.example.org" else "https://invidious.example.org") },
+            singleLine = true,
+            isError = invalid,
+            supportingText = {
+                Text(stringResource(if (invalid) R.string.instance_invalid else R.string.youtube_instance_hint))
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { save() }),
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            if (currentUrl.isNotEmpty()) {
+                TextButton(onClick = {
+                    text = ""
+                    save()
+                }) { Text(stringResource(R.string.reset)) }
+            }
+            Button(onClick = save, enabled = text != currentUrl || type != currentType) {
                 Text(stringResource(R.string.save))
             }
         }

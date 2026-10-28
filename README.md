@@ -77,7 +77,8 @@ The YouTube Shorts feed uses public [Piped](https://github.com/TeamPiped/Piped) 
 thumbnails and video streams come from these proxies; OpenShorts never talks to YouTube or Google directly.
 Public instances are run by volunteers and are often rate-limited or blocked by YouTube, so the app tries several
 of them in order. If none responds, the YouTube feed shows an error while PeerTube keeps working.
-Likes, saves and follows of YouTube videos are stored only on the device. The source can be turned off in the settings.
+Likes, saves and follows of YouTube videos are stored only on the device. The source can be turned off in the settings,
+and you can enter **your own Piped or Invidious instance** (Settings → Feed & server), which is always tried first.
 
 ### Current limitations (honest list)
 

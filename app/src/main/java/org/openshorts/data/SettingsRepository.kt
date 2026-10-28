@@ -38,6 +38,8 @@ class SettingsRepository(context: Context) {
                 shortsOnly = prefs[SHORTS_ONLY] ?: defaults.shortsOnly,
                 loopVideos = prefs[LOOP_VIDEOS] ?: defaults.loopVideos,
                 youTubeEnabled = prefs[YOUTUBE_ENABLED] ?: defaults.youTubeEnabled,
+                youTubeCustomInstance = prefs[YOUTUBE_CUSTOM_INSTANCE],
+                youTubeCustomType = prefs[YOUTUBE_CUSTOM_TYPE].toEnum(defaults.youTubeCustomType),
             )
         }
 
@@ -58,6 +60,12 @@ class SettingsRepository(context: Context) {
     suspend fun setLoopVideos(value: Boolean) = update { it[LOOP_VIDEOS] = value }
     suspend fun setYouTubeEnabled(value: Boolean) = update { it[YOUTUBE_ENABLED] = value }
 
+    /** [url] null removes the custom instance. */
+    suspend fun setYouTubeCustomInstance(url: String?, type: YouTubeInstanceType) = update {
+        if (url == null) it.remove(YOUTUBE_CUSTOM_INSTANCE) else it[YOUTUBE_CUSTOM_INSTANCE] = url
+        it[YOUTUBE_CUSTOM_TYPE] = type.name
+    }
+
     private suspend fun update(block: (MutablePreferences) -> Unit) {
         dataStore.edit { block(it) }
     }
@@ -75,6 +83,8 @@ class SettingsRepository(context: Context) {
         val SHORTS_ONLY = booleanPreferencesKey("shorts_only")
         val LOOP_VIDEOS = booleanPreferencesKey("loop_videos")
         val YOUTUBE_ENABLED = booleanPreferencesKey("youtube_enabled")
+        val YOUTUBE_CUSTOM_INSTANCE = stringPreferencesKey("youtube_custom_instance")
+        val YOUTUBE_CUSTOM_TYPE = stringPreferencesKey("youtube_custom_type")
     }
 }
 

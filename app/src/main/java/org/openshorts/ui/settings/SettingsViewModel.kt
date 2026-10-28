@@ -13,6 +13,7 @@ import org.openshorts.OpenShortsApp
 import org.openshorts.data.ColorPalette
 import org.openshorts.data.FontChoice
 import org.openshorts.data.ThemeMode
+import org.openshorts.data.YouTubeInstanceType
 import org.openshorts.data.normalizeInstanceUrl
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,6 +51,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setShortsOnly(value: Boolean) = launch { repository.setShortsOnly(value) }
     fun setLoopVideos(value: Boolean) = launch { repository.setLoopVideos(value) }
     fun setYouTubeEnabled(value: Boolean) = launch { repository.setYouTubeEnabled(value) }
+
+    /** Saves the user's own Piped/Invidious instance; blank input removes it. Returns false if invalid. */
+    fun setYouTubeCustomInstance(input: String, type: YouTubeInstanceType): Boolean {
+        if (input.isBlank()) {
+            launch { repository.setYouTubeCustomInstance(null, type) }
+            return true
+        }
+        val url = normalizeInstanceUrl(input) ?: return false
+        launch { repository.setYouTubeCustomInstance(url, type) }
+        return true
+    }
 
     /** Returns false if [input] is not a valid HTTPS instance URL. */
     fun setInstanceUrl(input: String): Boolean {

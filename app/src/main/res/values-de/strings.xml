@@ -226,4 +226,9 @@
     <string name="upload_short_ok">Hochformat und bis 60 Sekunden – ein perfekter Short.</string>
     <string name="upload_short_landscape">Dieses Video ist im Querformat. Shorts wirken am besten hochkant (9:16).</string>
     <string name="upload_short_long">Dieses Video ist länger als 60 Sekunden und wird als normales Video hochgeladen.</string>
+    <string name="youtube_unavailable">YouTube-Instanz aktuell überlastet. Versuche es gleich nochmal oder wechsle auf PeerTube.</string>
+    <string name="switch_to_peertube">Zu PeerTube wechseln</string>
+    <string name="youtube_instance">Eigene Piped-/Invidious-Instanz</string>
+    <string name="youtube_instance_url">Instanz-URL (optional)</string>
+    <string name="youtube_instance_hint">Wird zuerst gefragt, vor den öffentlichen Instanzen. Bei Piped die API-Adresse angeben (oft „pipedapi…“).</string>
 </resources>

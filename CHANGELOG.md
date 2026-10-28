@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.5]
+
+### Fixed
+- YouTube Shorts: instances that answer with an HTML error page instead of JSON are detected before parsing
+  and skipped; no more "Unexpected JSON token" errors
+- When no instance works, the feed shows "YouTube instance is currently overloaded…" with *Retry* and
+  *Switch to PeerTube* instead of a raw error
+
+### Changed
+- After the preferred instance fails, all other instances are asked in parallel and the first valid answer wins
+  (one timeout instead of one per instance); a page whose instance went down continues on another one
+- Updated instance list (Piped: kavin.rocks, privacydev.net, adminforge.de, private.coffee;
+  Invidious: nadeko.net, nerdvpn.de, drgns.space, riverside.rocks, yewtu.be)
+
+### Added
+- Settings: your own Piped or Invidious instance URL, tried before the public ones
+
 ## [1.0.4]
 
 ### Added

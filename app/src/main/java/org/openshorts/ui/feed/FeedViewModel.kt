@@ -95,6 +95,8 @@ data class FeedUiState(
     val isBuffering: Boolean = false,
     val userPaused: Boolean = false,
     val playbackFailed: Boolean = false,
+    /** No Piped/Invidious instance could deliver results right now. */
+    val youTubeUnavailable: Boolean = false,
 )
 
 private data class FeedSource(val instanceUrl: String, val shortsOnly: Boolean, val content: FeedContent)
@@ -317,7 +319,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         val src = source ?: return
         val current = _state.value
         if (current.isLoading || current.endReached) return
-        _state.update { it.copy(isLoading = true, error = null) }
+        _state.update { it.copy(isLoading = true, error = null, youTubeUnavailable = false) }
 
         loadJob = viewModelScope.launch {
             try {
@@ -360,7 +362,12 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e.message ?: e.javaClass.simpleName) }
+                if (src.content is FeedContent.YouTube) {
+                    // Never show raw parser/network errors for the volunteer-run YouTube proxies.
+                    _state.update { it.copy(isLoading = false, youTubeUnavailable = true) }
+                } else {
+                    _state.update { it.copy(isLoading = false, error = e.message ?: e.javaClass.simpleName) }
+                }
             }
         }
     }

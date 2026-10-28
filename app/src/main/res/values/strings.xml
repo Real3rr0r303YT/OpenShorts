@@ -228,4 +228,9 @@
     <string name="upload_short_ok">Vertical and up to 60 seconds – a perfect short.</string>
     <string name="upload_short_landscape">This video is landscape. Shorts look best in portrait (9:16).</string>
     <string name="upload_short_long">This video is longer than 60 seconds. It will be uploaded as a normal video.</string>
+    <string name="youtube_unavailable">YouTube instance is currently overloaded. Try again in a moment or switch to PeerTube.</string>
+    <string name="switch_to_peertube">Switch to PeerTube</string>
+    <string name="youtube_instance">Own Piped / Invidious instance</string>
+    <string name="youtube_instance_url">Instance URL (optional)</string>
+    <string name="youtube_instance_hint">Tried first, before the public instances. For Piped use the API address (often "pipedapi…").</string>
 </resources>

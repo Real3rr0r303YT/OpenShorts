@@ -1,6 +1,11 @@
 package org.openshorts.data.youtube
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.openshorts.data.peertube.Comment
@@ -34,25 +39,39 @@ sealed interface YouTubeBackend {
  * instances. Public instances come and go, so the client tries them in order and remembers
  * the last one that worked.
  */
-class YouTubeClient(private val http: Http, private val json: Json) {
+class YouTubeClient(
+    private val http: Http,
+    private val json: Json,
+    /** The user's own Piped/Invidious instance from the settings, tried before the public ones. */
+    private val customBackend: suspend () -> YouTubeBackend? = { null },
+) {
 
-    private val backends: List<YouTubeBackend> =
+    private val publicBackends: List<YouTubeBackend> =
         PIPED_INSTANCES.map { YouTubeBackend.Piped(it) } + INVIDIOUS_INSTANCES.map { YouTubeBackend.Invidious(it) }
 
     @Volatile
     private var preferred: YouTubeBackend? = null
 
+    private val raceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /** Searches short videos for [query]; [cursor] continues a previous search. */
     suspend fun searchShorts(query: String, cursor: YouTubeCursor?): YouTubePage =
         if (cursor != null) {
-            searchOn(cursor.backend, query, cursor.token)
+            try {
+                searchOn(cursor.backend, query, cursor.token)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // The instance of this page went down: continue with any working instance.
+                withAnyBackend { searchOn(it, query, null) }
+            }
         } else {
             withAnyBackend { searchOn(it, query, null) }
         }
 
     /** A directly playable stream URL (muxed MP4 or HLS) served through the proxy. */
     suspend fun streamUrl(video: Video): String? {
-        val start = backends.firstOrNull { it.base == video.instanceUrl }
+        val start = knownBackend(video.instanceUrl)
         return withAnyBackend(start) { backend ->
             when (backend) {
                 is YouTubeBackend.Piped -> pipedStream(backend, video.youTubeId)
@@ -62,7 +81,7 @@ class YouTubeClient(private val http: Http, private val json: Json) {
     }
 
     suspend fun comments(video: Video): CommentPage {
-        val start = backends.firstOrNull { it.base == video.instanceUrl }
+        val start = knownBackend(video.instanceUrl)
         return withAnyBackend(start) { backend ->
             val comments = when (backend) {
                 is YouTubeBackend.Piped -> {
@@ -191,37 +210,98 @@ class YouTubeClient(private val http: Http, private val json: Json) {
         else -> backend.base + url
     }
 
-    private suspend fun get(url: String): String = http.request(url, timeoutMs = 12_000).body
+    private suspend fun knownBackend(base: String): YouTubeBackend? =
+        (listOfNotNull(customBackend()) + publicBackends).firstOrNull { it.base == base }
 
-    /** Runs [block] on the preferred backend first, then on the others until one succeeds. */
+    /**
+     * GETs [url] and returns the body only if it is JSON. Overloaded or broken instances often
+     * answer with an HTML error page (Cloudflare, "502 Bad Gateway", …); that counts as a failure
+     * of this instance so the next one is tried instead of crashing the JSON parser.
+     */
+    private suspend fun get(url: String): String {
+        val response = http.request(url, timeoutMs = 10_000)
+        if (looksLikeHtml(response.body, response.header("Content-Type"))) throw NotJsonException(url)
+        return response.body
+    }
+
+    /**
+     * Runs [block] on the preferred backend (the custom one, the last working one or [start]) first.
+     * If that fails, all other instances are asked at the same time and the first valid answer wins,
+     * so a dead instance costs one timeout instead of one timeout per instance.
+     */
     private suspend fun <T> withAnyBackend(start: YouTubeBackend? = null, block: suspend (YouTubeBackend) -> T): T {
-        val order = listOfNotNull(start, preferred).distinct() + backends.filter { it != start && it != preferred }
-        var last: Exception? = null
-        for (backend in order) {
+        val custom = customBackend()
+        val first = listOfNotNull(custom, start, preferred).distinct()
+        for (backend in first) {
             try {
                 return block(backend).also { preferred = backend }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
-                last = e
+            } catch (_: Exception) {
+                // try the next one
             }
         }
-        throw last ?: IOException("No YouTube proxy reachable")
+        val rest = publicBackends.filter { it !in first }
+        // Requests run in their own scope: blocking network calls of the losers must not delay the winner.
+        val results = Channel<Result<Pair<YouTubeBackend, T>>>(rest.size)
+        val jobs = rest.map { backend ->
+            raceScope.launch {
+                val result = try {
+                    Result.success(backend to block(backend))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+                results.trySend(result)
+            }
+        }
+        try {
+            repeat(rest.size) {
+                val value = results.receive().getOrNull()
+                if (value != null) {
+                    preferred = value.first
+                    return value.second
+                }
+            }
+        } finally {
+            jobs.forEach { it.cancel() }
+        }
+        throw YouTubeUnavailableException()
     }
 
     companion object {
-        /** Public Piped API instances (see https://github.com/TeamPiped/documentation). */
+        /**
+         * Public Piped API instances (https://github.com/TeamPiped/documentation/blob/main/content/docs/public-instances/index.md).
+         * Volunteer-run and frequently overloaded: users can add their own instance in the settings.
+         */
         val PIPED_INSTANCES = listOf(
             "https://pipedapi.kavin.rocks",
+            "https://api.piped.privacydev.net",
             "https://pipedapi.adminforge.de",
             "https://api.piped.private.coffee",
         )
 
-        /** Public Invidious instances (see https://api.invidious.io). */
+        /** Public Invidious instances (https://api.invidious.io). */
         val INVIDIOUS_INSTANCES = listOf(
-            "https://invidious.nerdvpn.de",
             "https://inv.nadeko.net",
+            "https://invidious.nerdvpn.de",
+            "https://invidious.drgns.space",
+            "https://inv.riverside.rocks",
             "https://yewtu.be",
         )
     }
+}
+
+/** No Piped/Invidious instance answered with usable data. */
+class YouTubeUnavailableException : IOException("No YouTube instance available")
+
+/** An instance answered with HTML (error page) instead of JSON. */
+class NotJsonException(url: String) : IOException("Not a JSON response from $url")
+
+/** True if a response is an HTML page rather than JSON (checked before parsing). */
+fun looksLikeHtml(body: String, contentType: String?): Boolean {
+    if (contentType?.contains("text/html", ignoreCase = true) == true) return true
+    val start = body.trimStart().take(15).lowercase()
+    return start.startsWith("<!doctype") || start.startsWith("<html") || start.startsWith("<")
 }

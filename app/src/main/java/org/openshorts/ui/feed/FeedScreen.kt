@@ -34,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -119,6 +120,15 @@ fun FeedScreen(
             .background(Color.Black),
     ) {
         when {
+            state.videos.isEmpty() && state.youTubeUnavailable ->
+                FeedMessage(
+                    text = stringResource(R.string.youtube_unavailable),
+                    actionLabel = stringResource(R.string.retry),
+                    onAction = viewModel::retry,
+                    secondaryLabel = stringResource(R.string.switch_to_peertube),
+                    onSecondary = { viewModel.selectPlatform(FeedPlatform.PEERTUBE) },
+                )
+
             state.videos.isEmpty() && state.error != null ->
                 FeedMessage(
                     text = stringResource(R.string.feed_error, state.error.orEmpty()),
@@ -461,7 +471,13 @@ private val FeedTab.labelRes: Int
     }
 
 @Composable
-private fun FeedMessage(text: String, actionLabel: String, onAction: () -> Unit) {
+private fun FeedMessage(
+    text: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    secondaryLabel: String? = null,
+    onSecondary: () -> Unit = {},
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -472,5 +488,9 @@ private fun FeedMessage(text: String, actionLabel: String, onAction: () -> Unit)
         Text(text = text, color = Color.White, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
         Button(onClick = onAction) { Text(actionLabel) }
+        if (secondaryLabel != null) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onSecondary) { Text(secondaryLabel, color = Color.White) }
+        }
     }
 }

@@ -1,15 +1,18 @@
 package org.openshorts
 
 import android.app.Application
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import org.openshorts.data.AccountRepository
 import org.openshorts.data.ChatRepository
 import org.openshorts.data.LocalFiles
 import org.openshorts.data.ProfileRepository
 import org.openshorts.data.SettingsRepository
+import org.openshorts.data.YouTubeInstanceType
 import org.openshorts.data.peertube.Http
 import org.openshorts.data.peertube.PeerTubeAccountApi
 import org.openshorts.data.peertube.PeerTubeClient
+import org.openshorts.data.youtube.YouTubeBackend
 import org.openshorts.data.youtube.YouTubeClient
 
 /**
@@ -48,5 +51,15 @@ class OpenShortsApp : Application() {
     }
 
     /** YouTube Shorts through public Piped/Invidious proxies. */
-    val youTubeClient: YouTubeClient by lazy { YouTubeClient(http, json) }
+    val youTubeClient: YouTubeClient by lazy {
+        YouTubeClient(http, json) {
+            val settings = settingsRepository.settings.first()
+            settings.youTubeCustomInstance?.let { url ->
+                when (settings.youTubeCustomType) {
+                    YouTubeInstanceType.PIPED -> YouTubeBackend.Piped(url)
+                    YouTubeInstanceType.INVIDIOUS -> YouTubeBackend.Invidious(url)
+                }
+            }
+        }
+    }
 }
