@@ -15,8 +15,8 @@ android {
         applicationId = "org.openshorts"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
 
         buildConfigField("String", "DONATION_URL", "\"https://buymeacoffee.com/3rr0r303yt\"")
         buildConfigField("String", "SOURCE_URL", "\"https://github.com/Real3rr0r303YT/OpenShorts\"")
@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.security.crypto)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

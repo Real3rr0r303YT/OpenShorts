@@ -12,13 +12,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,7 +40,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +66,13 @@ import java.time.Instant
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommentsSheet(video: Video, instanceUrl: String, onDismiss: () -> Unit) {
-    val client = (LocalContext.current.applicationContext as OpenShortsApp).peerTubeClient
+    val app = LocalContext.current.applicationContext as OpenShortsApp
+    val client = app.peerTubeClient
+    val accounts = app.accountRepository
+    val session by accounts.session.collectAsStateWithLifecycle()
+    var draft by rememberSaveable(video.uuid) { mutableStateOf("") }
+    var posting by remember { mutableStateOf(false) }
+    var postError by remember { mutableStateOf<String?>(null) }
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -139,15 +152,69 @@ fun CommentsSheet(video: Video, instanceUrl: String, onDismiss: () -> Unit) {
                 }
             }
             HorizontalDivider()
-            // PeerTube needs an account on the instance to write comments.
-            Row(
+            val errorText = postError
+            if (session != null) {
+                // Logged in: write a comment through the user's own PeerTube server.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = {
+                            draft = it
+                            postError = null
+                        },
+                        placeholder = { Text(stringResource(R.string.comment_hint)) },
+                        isError = errorText != null,
+                        supportingText = if (errorText != null) {
+                            { Text(errorText) }
+                        } else {
+                            null
+                        },
+                        maxLines = 4,
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    val failedText = stringResource(R.string.comment_failed)
+                    FilledIconButton(
+                        enabled = draft.isNotBlank() && !posting,
+                        onClick = {
+                            posting = true
+                            scope.launch {
+                                try {
+                                    val created = accounts.postComment(video, draft)
+                                    if (created != null) comments = listOf(created) + comments
+                                    total += 1
+                                    draft = ""
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    postError = e.message?.let { "$failedText ($it)" } ?: failedText
+                                } finally {
+                                    posting = false
+                                }
+                            }
+                        },
+                    ) {
+                        if (posting) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.chat_send))
+                        }
+                    }
+                }
+            } else Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(R.string.comments_write_hint),
+                    text = stringResource(R.string.comments_login_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

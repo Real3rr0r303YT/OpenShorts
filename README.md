@@ -55,14 +55,26 @@ Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums s
   - Profile, likes, follows and chats are stored only on the device and excluded from cloud backups
 - 🛠️ **Transparent builds** – every APK is built by GitHub Actions with published SHA-256 checksums
 
+### PeerTube account (optional)
+
+Log in with an account of **any PeerTube server** (Settings → PeerTube account, or "+"):
+
+- OAuth2 password grant directly against your server (incl. two-factor codes). PeerTube offers no
+  browser-based login for third-party apps, so this is the official way apps sign in.
+- Your password is never stored. Access/refresh tokens are kept in `EncryptedSharedPreferences`
+  (key in the Android Keystore) and excluded from backups; logging out revokes the token on the server.
+- When logged in, likes, follows (subscriptions) and bookmarks ("watch later") are sent to your server,
+  you can write comments, see a "Following" feed and upload shorts with title, description, tags and visibility.
+
 ### Current limitations (honest list)
 
-- **Account:** the profile is a *local* account. There is no OpenShorts server and no sign-up, so nobody can
-  follow it yet – the follower count is therefore 0.
 - **Direct messages:** PeerTube has no direct-message API. Chats are stored on the device and are **not delivered**
   to the contact yet. The `ChatRepository` is where a real transport (e.g. Matrix) will plug in.
-- **Posting videos and writing comments** require an account on a PeerTube server and are planned for a later version.
-- Likes and follows are local; they are not sent to PeerTube.
+- **Without login** the profile is local only: likes and follows stay on the device and the follower count is 0.
+- **Uploads** run while the app is open (no background service yet); large files are sent in 8 MB chunks.
+- Profile banner, bio and tip link are stored locally and not (yet) written to the PeerTube account.
+- `androidx.security:security-crypto` is deprecated by Google but still maintained for existing apps; a migration
+  to a direct Keystore implementation is planned.
 
 ## Screens
 
@@ -77,7 +89,7 @@ Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums s
 | Language | Kotlin |
 | UI | Jetpack Compose, Material 3 |
 | Playback | AndroidX Media3 / ExoPlayer (HLS + progressive) |
-| Persistence | Jetpack DataStore (Preferences) |
+| Persistence | Jetpack DataStore (Preferences), EncryptedSharedPreferences for tokens |
 | Networking / JSON | `HttpURLConnection` + kotlinx.serialization |
 
 The dependency list is intentionally short — see [`gradle/libs.versions.toml`](gradle/libs.versions.toml).
@@ -160,7 +172,6 @@ Users can import any `.ttf`/`.otf` font in **Settings → Font**. To bundle anot
 
 ## Roadmap
 
-- [ ] PeerTube login (OAuth): real likes, comments and uploads
 - [ ] Delivered direct messages via a decentralized protocol (e.g. Matrix)
 - [ ] "Following" feed built from followed creators
 - [ ] Additional platforms

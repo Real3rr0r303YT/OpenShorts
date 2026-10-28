@@ -136,6 +136,7 @@ internal fun PeerTubeVideo.toVideo(instanceUrl: String): Video {
         creatorUrl = channel?.url ?: account?.url,
         channelHandle = channel?.let { it.name + if (it.host.isNotEmpty()) "@${it.host}" else "" },
         instanceUrl = instanceUrl,
+        id = id,
     )
 }
 
@@ -147,7 +148,7 @@ internal fun PeerTubeActor.toCreator(instanceUrl: String): Creator = Creator(
     followers = followersCount,
 )
 
-private fun String.urlEncode(): String = java.net.URLEncoder.encode(this, "UTF-8")
+private fun String.urlEncode(): String = urlEncoded()
 
 internal fun PeerTubeComment.toComment(instanceUrl: String): Comment = Comment(
     id = id,

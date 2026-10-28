@@ -10,3 +10,9 @@
 -keepclasseswithmembers class org.openshorts.data.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Tink (used by androidx.security-crypto) references compile-time-only annotations.
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn com.google.api.client.**
+-dontwarn org.joda.time.**

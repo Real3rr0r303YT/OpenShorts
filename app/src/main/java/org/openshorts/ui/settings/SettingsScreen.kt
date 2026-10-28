@@ -90,6 +90,9 @@ import org.openshorts.data.ColorPalette
 import org.openshorts.data.FontChoice
 import org.openshorts.data.ThemeMode
 import org.openshorts.data.PRESET_INSTANCES
+import org.openshorts.ui.account.AccountSummary
+import org.openshorts.ui.account.AccountViewModel
+import org.openshorts.ui.account.SyncState
 import org.openshorts.ui.theme.colorScheme
 import org.openshorts.ui.theme.fontFamilyFor
 import org.openshorts.ui.theme.supportsDynamicColor
@@ -98,8 +101,12 @@ import org.openshorts.ui.theme.supportsDynamicColor
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    onOpenLogin: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
+    accountViewModel: AccountViewModel = viewModel(),
 ) {
+    val account by accountViewModel.account.collectAsStateWithLifecycle()
+    val syncState by accountViewModel.sync.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     val fontError by viewModel.fontError.collectAsStateWithLifecycle()
     val pickFont = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -120,6 +127,38 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DonationCard(onDonate = { uriHandler.openUri(BuildConfig.DONATION_URL) })
+
+            SectionHeader(R.string.section_account)
+            val current = account
+            if (current == null) {
+                Text(
+                    stringResource(R.string.account_logged_out),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(onClick = onOpenLogin, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.login_button))
+                }
+            } else {
+                AccountSummary(
+                    displayName = current.displayName,
+                    handle = current.handle,
+                    avatarUrl = current.avatarUrl,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = accountViewModel::sync, enabled = syncState != SyncState.Running) {
+                        Text(stringResource(if (syncState == SyncState.Running) R.string.sync_running else R.string.sync))
+                    }
+                    TextButton(onClick = accountViewModel::logout) { Text(stringResource(R.string.logout)) }
+                }
+                Text(
+                    stringResource(R.string.account_sync_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
             SectionHeader(R.string.section_appearance)
 

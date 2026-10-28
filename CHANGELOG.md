@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.2]
+
+### Added
+- **PeerTube login** (OAuth2 password grant, incl. two-factor codes) for any PeerTube server;
+  tokens are stored encrypted (EncryptedSharedPreferences / Android Keystore) and refreshed automatically
+- Likes, follows (subscriptions) and bookmarks ("watch later" playlist) are sent to the server when logged in;
+  videos from other servers are resolved on your own server first
+- "Sync" merges server likes, bookmarks and subscriptions into the profile and sends local ones to the server
+- Write comments under videos when logged in
+- **"+" upload** in the bottom bar and profile: resumable upload of a gallery video to your channel with title,
+  description, up to 5 tags (#cybersecurity, #tech, …) and visibility
+- "Following" feed tab with videos of your subscriptions
+- Profile shows your server account, real follower count and your posted videos
+- Session-expired dialog when the server revokes the login
+
 ## [1.0.1]
 
 ### Added

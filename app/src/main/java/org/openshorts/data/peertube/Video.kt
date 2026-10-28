@@ -25,6 +25,8 @@ data class Video(
     val channelHandle: String? = null,
     /** Instance the video was loaded from; used to resolve its stream later. */
     val instanceUrl: String = "",
+    /** Numeric id, only valid on [instanceUrl]. */
+    val id: Long = 0,
 )
 
 /** A (top-level) comment, already converted to plain text. */

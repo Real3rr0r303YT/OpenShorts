@@ -1,10 +1,14 @@
 package org.openshorts
 
 import android.app.Application
+import kotlinx.serialization.json.Json
+import org.openshorts.data.AccountRepository
 import org.openshorts.data.ChatRepository
 import org.openshorts.data.LocalFiles
 import org.openshorts.data.ProfileRepository
 import org.openshorts.data.SettingsRepository
+import org.openshorts.data.peertube.Http
+import org.openshorts.data.peertube.PeerTubeAccountApi
 import org.openshorts.data.peertube.PeerTubeClient
 
 /**
@@ -26,4 +30,14 @@ class OpenShortsApp : Application() {
     val chatRepository: ChatRepository by lazy { ChatRepository(this) }
 
     val peerTubeClient: PeerTubeClient by lazy { PeerTubeClient(userAgent) }
+
+    /** PeerTube login, synced interactions and uploads. */
+    val accountRepository: AccountRepository by lazy {
+        val json = Json {
+            ignoreUnknownKeys = true
+            coerceInputValues = true
+            explicitNulls = false
+        }
+        AccountRepository(this, PeerTubeAccountApi(Http(userAgent, json), json, userAgent), profileRepository)
+    }
 }

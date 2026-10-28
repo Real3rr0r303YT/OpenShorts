@@ -12,6 +12,7 @@ data class VideoListResponse(
 
 @Serializable
 data class PeerTubeVideo(
+    val id: Long = 0,
     val uuid: String,
     val shortUUID: String? = null,
     val name: String = "",

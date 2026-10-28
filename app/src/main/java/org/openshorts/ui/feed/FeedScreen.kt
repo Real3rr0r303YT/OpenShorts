@@ -6,6 +6,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -76,6 +80,14 @@ fun FeedScreen(
     val likedIds by viewModel.likedIds.collectAsStateWithLifecycle()
     val savedIds by viewModel.savedIds.collectAsStateWithLifecycle()
     val followed by viewModel.followedHandles.collectAsStateWithLifecycle()
+    val loggedIn by viewModel.loggedIn.collectAsStateWithLifecycle()
+    val snackbarHost = remember { SnackbarHostState() }
+    val syncErrorText = stringResource(R.string.sync_error)
+    LaunchedEffect(viewModel) {
+        viewModel.syncErrors.collect { detail ->
+            snackbarHost.showSnackbar(if (detail.isNullOrBlank()) syncErrorText else "$syncErrorText ($detail)")
+        }
+    }
     var commentsFor by remember { mutableStateOf<Video?>(null) }
     var creatorFor by remember { mutableStateOf<Video?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
@@ -142,6 +154,7 @@ fun FeedScreen(
 
         FeedHeader(
             content = state.content,
+            loggedIn = loggedIn,
             onSelectTab = { tab ->
                 if (state.content == FeedContent.Tab(tab)) viewModel.refresh() else viewModel.selectTab(tab)
             },
@@ -151,6 +164,13 @@ fun FeedScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .statusBarsPadding(),
+        )
+
+        SnackbarHost(
+            hostState = snackbarHost,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp),
         )
 
         AnimatedVisibility(visible = searchOpen, enter = fadeIn(), exit = fadeOut()) {
@@ -264,6 +284,7 @@ private fun VideoPager(
 @Composable
 private fun FeedHeader(
     content: FeedContent,
+    loggedIn: Boolean,
     onSelectTab: (FeedTab) -> Unit,
     onOpenSearch: () -> Unit,
     onClearSearch: () -> Unit,
@@ -272,10 +293,13 @@ private fun FeedHeader(
     Box(modifier = modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
         if (content is FeedContent.Tab) {
             Row(
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(start = 8.dp, end = 44.dp)
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                FeedTab.entries.forEach { tab ->
+                FeedTab.entries.filter { loggedIn || !it.requiresLogin }.forEach { tab ->
                     TabLabel(
                         text = stringResource(tab.labelRes),
                         selected = tab == content.tab,
@@ -348,6 +372,7 @@ private fun TabLabel(text: String, selected: Boolean, onClick: () -> Unit) {
 private val FeedTab.labelRes: Int
     get() = when (this) {
         FeedTab.TECH -> R.string.tab_tech
+        FeedTab.FOLLOWING -> R.string.tab_following
         FeedTab.TRENDING -> R.string.tab_trending
         FeedTab.LATEST -> R.string.tab_latest
         FeedTab.LOCAL -> R.string.tab_local

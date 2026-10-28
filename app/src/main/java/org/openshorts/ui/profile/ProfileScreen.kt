@@ -23,7 +23,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocalCafe
 import androidx.compose.material.icons.filled.People
@@ -61,6 +65,8 @@ import org.openshorts.BuildConfig
 import org.openshorts.R
 import org.openshorts.data.peertube.Creator
 import org.openshorts.data.peertube.Video
+import org.openshorts.ui.account.AccountViewModel
+import org.openshorts.ui.account.SyncState
 import org.openshorts.ui.components.Avatar
 import org.openshorts.ui.components.RemoteImage
 import org.openshorts.ui.components.formatCount
@@ -76,11 +82,18 @@ private enum class ProfileTab(val icon: ImageVector, val label: Int) {
 @Composable
 fun ProfileScreen(
     onEditProfile: () -> Unit,
+    onLogin: () -> Unit,
+    onUpload: () -> Unit,
     onPlayVideos: (title: String, videos: List<Video>, startIndex: Int) -> Unit,
     onOpenCreator: (Creator) -> Unit,
     viewModel: ProfileViewModel = viewModel(),
+    accountViewModel: AccountViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val account by viewModel.account.collectAsStateWithLifecycle()
+    val posted by viewModel.posted.collectAsStateWithLifecycle()
+    val syncState by accountViewModel.sync.collectAsStateWithLifecycle()
+    val postedTitle = stringResource(R.string.profile_tab_posted)
     val uriHandler = LocalUriHandler.current
     var tab by rememberSaveable { mutableIntStateOf(ProfileTab.LIKED.ordinal) }
     val selectedTab = ProfileTab.entries[tab]
@@ -105,8 +118,8 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth().height(180.dp),
                     )
                     Avatar(
-                        source = profile.avatarPath,
-                        name = profile.displayName.ifBlank { profile.username.ifBlank { "?" } },
+                        source = profile.avatarPath ?: account?.avatarUrl,
+                        name = profile.displayName.ifBlank { account?.displayName ?: profile.username.ifBlank { "?" } },
                         size = 104.dp,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -116,7 +129,7 @@ fun ProfileScreen(
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = profile.displayName.ifBlank { stringResource(R.string.profile_anonymous) },
+                        text = profile.displayName.ifBlank { account?.displayName ?: stringResource(R.string.profile_anonymous) },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
@@ -130,18 +143,35 @@ fun ProfileScreen(
                         )
                     }
                 }
-                if (profile.username.isNotBlank()) {
+                val shownHandle = account?.handle ?: profile.username.takeIf { it.isNotBlank() }
+                if (shownHandle != null) {
                     Text(
-                        "@${profile.username}",
+                        "@$shownHandle",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (account != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                        Icon(
+                            Icons.Filled.Link,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            stringResource(R.string.account_connected),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                     Stat(formatCount(state.following.size.toLong()), stringResource(R.string.stat_following))
-                    // A local account cannot be followed by anyone (yet): no server, no followers.
-                    Stat("0", stringResource(R.string.stat_followers))
+                    // Real followers only exist with a PeerTube account; a local-only profile has none.
+                    Stat(formatCount(account?.followersCount ?: 0), stringResource(R.string.stat_followers))
                     Stat(formatCount(state.liked.size.toLong()), stringResource(R.string.stat_likes))
                 }
                 Spacer(Modifier.height(16.dp))
@@ -151,6 +181,19 @@ fun ProfileScreen(
                     } else {
                         Button(onClick = onEditProfile) { Text(stringResource(R.string.setup_profile)) }
                     }
+                    if (account == null) {
+                        FilledTonalButton(onClick = onLogin) {
+                            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.login_button))
+                        }
+                    } else {
+                        FilledTonalButton(onClick = accountViewModel::sync, enabled = syncState != SyncState.Running) {
+                            Icon(Icons.Filled.Sync, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.sync))
+                        }
+                    }
                     if (profile.supportUrl.isNotBlank()) {
                         FilledTonalButton(onClick = { uriHandler.openUri(profile.supportUrl) }) {
                             Icon(Icons.Filled.LocalCafe, contentDescription = null)
@@ -159,9 +202,11 @@ fun ProfileScreen(
                         }
                     }
                 }
-                if (profile.bio.isNotBlank()) {
+                SyncStatus(syncState)
+                val bio = profile.bio.ifBlank { account?.description.orEmpty() }
+                if (bio.isNotBlank()) {
                     Text(
-                        text = profile.bio,
+                        text = bio,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp),
@@ -184,8 +229,18 @@ fun ProfileScreen(
         }
 
         when (selectedTab) {
-            ProfileTab.POSTED -> item(span = { GridItemSpan(maxLineSpan) }) {
-                EmptyTab(stringResource(R.string.profile_posted_empty))
+            ProfileTab.POSTED -> if (account == null) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        EmptyTab(stringResource(R.string.profile_posted_login))
+                        Button(onClick = onLogin) { Text(stringResource(R.string.login_button)) }
+                    }
+                }
+            } else {
+                item { UploadTile(onClick = onUpload) }
+                itemsIndexed(posted, key = { _, video -> "posted-${video.uuid}" }) { index, video ->
+                    VideoTile(video = video, onClick = { onPlayVideos(postedTitle, posted, index) })
+                }
             }
             ProfileTab.LIKED, ProfileTab.SAVED -> {
                 val videos = if (selectedTab == ProfileTab.LIKED) state.liked else state.saved
@@ -217,6 +272,44 @@ fun ProfileScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SyncStatus(state: SyncState) {
+    val text = when (state) {
+        SyncState.Idle -> return
+        SyncState.Running -> stringResource(R.string.sync_running)
+        is SyncState.Done -> stringResource(R.string.sync_done, state.result.pulled, state.result.pushed) +
+            if (state.result.failed > 0) " " + stringResource(R.string.sync_partial, state.result.failed) else ""
+        is SyncState.Failed -> stringResource(R.string.sync_failed, state.message.orEmpty())
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (state is SyncState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
+private fun UploadTile(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(9f / 14f)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(36.dp))
+            Text(
+                stringResource(R.string.nav_upload),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
         }
     }
 }

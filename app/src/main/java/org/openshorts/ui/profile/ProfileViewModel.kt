@@ -29,6 +29,37 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
     private val app = application as OpenShortsApp
     private val repository = app.profileRepository
+    private val accounts = app.accountRepository
+
+    /** The linked PeerTube account, if logged in. */
+    val account = accounts.account
+
+    private val _posted = MutableStateFlow<List<Video>>(emptyList())
+
+    /** The user's own videos on their PeerTube server. */
+    val posted: StateFlow<List<Video>> = _posted.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            accounts.account.collect { refreshPosted() }
+        }
+    }
+
+    fun refreshPosted() {
+        viewModelScope.launch {
+            _posted.value = if (accounts.account.value == null) {
+                emptyList()
+            } else {
+                try {
+                    accounts.myVideos()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    _posted.value
+                }
+            }
+        }
+    }
 
     val state: StateFlow<ProfileUiState> = combine(
         repository.profile,

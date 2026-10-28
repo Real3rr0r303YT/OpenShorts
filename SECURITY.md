@@ -29,6 +29,8 @@ credit you in the release notes unless you prefer to stay anonymous.
 - The app requests only the `INTERNET` permission.
 - Cleartext (HTTP) traffic is disabled via `network_security_config.xml`; only system CAs are trusted.
 - No analytics, tracking, crash-reporting or advertising SDKs are included.
-- No user account or credentials are stored. Settings live in a local DataStore file that is
-  excluded from cloud backups.
+- Logging in to PeerTube is optional. Passwords are never stored; OAuth access/refresh tokens are kept in
+  `EncryptedSharedPreferences` (AES-256, key in the Android Keystore), excluded from all backups and revoked on
+  logout. Tokens are only ever sent to the server they were issued by, over HTTPS.
+- Settings and the local profile live in DataStore files that are excluded from cloud backups.
 - Release APKs are built publicly by GitHub Actions; SHA-256 checksums are published with every run.

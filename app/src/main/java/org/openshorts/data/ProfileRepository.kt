@@ -90,6 +90,30 @@ class ProfileRepository(context: Context) {
 
     suspend fun toggleFollow(creator: Creator) = toggle(FOLLOWING, creatorList, creator) { it.handle }
 
+    /** Adds server-side entries that are missing locally; returns how many were added. */
+    suspend fun mergeLikes(videos: List<Video>): Int = merge(LIKED_VIDEOS, videoList, videos) { it.uuid }
+
+    suspend fun mergeSaved(videos: List<Video>): Int = merge(SAVED_VIDEOS, videoList, videos) { it.uuid }
+
+    suspend fun mergeFollowing(creators: List<Creator>): Int = merge(FOLLOWING, creatorList, creators) { it.handle }
+
+    private suspend fun <T> merge(
+        key: Preferences.Key<String>,
+        serializer: KSerializer<List<T>>,
+        items: List<T>,
+        id: (T) -> String,
+    ): Int {
+        var added = 0
+        dataStore.edit { p ->
+            val list = decode(p[key], serializer)
+            val known = list.mapTo(HashSet(), id)
+            val missing = items.filter { id(it) !in known }
+            added = missing.size
+            if (missing.isNotEmpty()) p[key] = json.encodeToString(serializer, (list + missing).take(MAX_ENTRIES))
+        }
+        return added
+    }
+
     suspend fun clearLikes() {
         dataStore.edit { it.remove(LIKED_VIDEOS) }
     }

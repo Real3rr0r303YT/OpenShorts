@@ -17,6 +17,7 @@ OpenShorts is made possible by these open-source projects and communities. Thank
 | [Jetpack Compose & Material 3](https://developer.android.com/jetpack/compose) | Apache 2.0 |
 | [Material Icons](https://fonts.google.com/icons) | Apache 2.0 |
 | [AndroidX Media3 / ExoPlayer](https://github.com/androidx/media) | Apache 2.0 |
+| [AndroidX Security Crypto](https://developer.android.com/jetpack/androidx/releases/security) & [Tink](https://github.com/tink-crypto/tink-java) | Apache 2.0 |
 
 Apache 2.0 licensed code is compatible with the GNU GPL v3.0 under which OpenShorts is distributed.
 

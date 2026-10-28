@@ -14,7 +14,10 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,8 +34,16 @@ import org.openshorts.data.peertube.Creator
 import org.openshorts.data.peertube.Video
 
 /** The tabs on top of the feed. [TECH] (cybersecurity, Linux, programming…) is the default. */
-enum class FeedTab(val sort: String, val localOnly: Boolean, val tags: List<String> = emptyList()) {
+enum class FeedTab(
+    val sort: String,
+    val localOnly: Boolean,
+    val tags: List<String> = emptyList(),
+    /** Only shown when logged in with a PeerTube account. */
+    val requiresLogin: Boolean = false,
+) {
     TECH("-publishedAt", false, TECH_TAGS),
+    /** Videos of channels the user follows on their PeerTube account. */
+    FOLLOWING("-publishedAt", false, requiresLogin = true),
     TRENDING("-trending", false),
     LATEST("-publishedAt", false),
     LOCAL("-publishedAt", true),
@@ -71,6 +82,17 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as OpenShortsApp
     private val client = app.peerTubeClient
     private val profiles = app.profileRepository
+    private val accounts = app.accountRepository
+
+    /** True while logged in with a PeerTube account (likes etc. are then synced). */
+    val loggedIn: StateFlow<Boolean> = accounts.session
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _syncErrors = MutableSharedFlow<String?>(extraBufferCapacity = 4)
+
+    /** Emits when an action could not be sent to the PeerTube server (message may be null). */
+    val syncErrors: SharedFlow<String?> = _syncErrors.asSharedFlow()
 
     /** One shared player for the whole feed; only the visible page renders it. */
     val player: ExoPlayer = buildPlayer(application)
@@ -224,10 +246,14 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun fetchPage(src: FeedSource, start: Int): List<Video> =
         when (val content = src.content) {
-            is FeedContent.Tab -> client.videos(
-                src.instanceUrl, start, PAGE_SIZE,
-                sort = content.tab.sort, localOnly = content.tab.localOnly, tagsOneOf = content.tab.tags,
-            )
+            is FeedContent.Tab -> if (content.tab == FeedTab.FOLLOWING) {
+                accounts.subscriptionVideos(start, PAGE_SIZE)
+            } else {
+                client.videos(
+                    src.instanceUrl, start, PAGE_SIZE,
+                    sort = content.tab.sort, localOnly = content.tab.localOnly, tagsOneOf = content.tab.tags,
+                )
+            }
             is FeedContent.Search -> when (val query = content.query) {
                 is SearchQuery.Text -> client.searchVideos(src.instanceUrl, query.text, start, PAGE_SIZE)
                 is SearchQuery.Tag -> client.videos(src.instanceUrl, start, PAGE_SIZE, tagsOneOf = listOf(query.tag))
@@ -288,7 +314,11 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleLike(video: Video) {
-        viewModelScope.launch { profiles.toggleLike(video) }
+        val like = video.uuid !in likedIds.value
+        viewModelScope.launch {
+            profiles.toggleLike(video)
+            syncToServer { accounts.setLiked(video, like) }
+        }
     }
 
     /** Double-tap: only ever adds a like, like in other short-video apps. */
@@ -297,12 +327,32 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleSaved(video: Video) {
-        viewModelScope.launch { profiles.toggleSaved(video) }
+        val save = video.uuid !in savedIds.value
+        viewModelScope.launch {
+            profiles.toggleSaved(video)
+            syncToServer { accounts.setSaved(video, save) }
+        }
     }
 
     fun toggleFollow(video: Video) {
         val creator = video.toCreator() ?: return
-        viewModelScope.launch { profiles.toggleFollow(creator) }
+        val follow = creator.handle !in followedHandles.value
+        viewModelScope.launch {
+            profiles.toggleFollow(creator)
+            syncToServer { accounts.setFollowing(creator, follow) }
+        }
+    }
+
+    /** Sends an interaction to the user's PeerTube server when logged in; the local state is kept either way. */
+    private suspend fun syncToServer(action: suspend () -> Unit) {
+        if (!accounts.isLoggedIn) return
+        try {
+            action()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _syncErrors.tryEmit(e.message)
+        }
     }
 
     /** Lifecycle pause (app in background, other tab opened) – keeps the user's choice. */
