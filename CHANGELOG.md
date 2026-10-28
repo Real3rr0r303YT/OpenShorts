@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.6.1]
 
 ### Added
 - `AdBlockWebView` (`org.openshorts.web`): reusable in-app browser WebView with an ad blocker –
