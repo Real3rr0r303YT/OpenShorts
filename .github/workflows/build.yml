@@ -73,3 +73,60 @@ jobs:
           name: lint-report-${{ github.sha }}
           path: app/build/reports/lint-results-debug.html
           if-no-files-found: ignore
+
+  # Publishes a public GitHub release when a version tag (e.g. v0.1.0) is pushed.
+  release:
+    name: Publish GitHub release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: OpenShorts-${{ github.sha }}
+          path: build-output
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp build-output/*-debug.apk "release/OpenShorts-${GITHUB_REF_NAME}.apk"
+          cd release && sha256sum *.apk | tee SHA256SUMS.txt
+
+      - name: Write release notes
+        run: |
+          cat > notes.md <<NOTES
+          ## OpenShorts ${GITHUB_REF_NAME}
+
+          Privacy-friendly, decentralized short-video client for PeerTube.
+          No account, no ads, no tracking.
+
+          ### Install
+          1. Download **OpenShorts-${GITHUB_REF_NAME}.apk** below.
+          2. Open it on your Android device (Android 8.0 or newer) and allow installing from this source.
+
+          ### Verify
+          \`\`\`
+          $(cat release/SHA256SUMS.txt)
+          \`\`\`
+          Built publicly by GitHub Actions from commit ${GITHUB_SHA}.
+
+          > Early preview build (debug-signed). Future versions may need to be installed fresh
+          > instead of as an update until release signing is set up.
+
+          ### ☕ Support OpenShorts
+          https://buymeacoffee.com/3rr0r303yt
+          NOTES
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "OpenShorts $GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --prerelease

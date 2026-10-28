@@ -23,6 +23,12 @@ The same link is available inside the app under **Settings → Support OpenShort
 
 ---
 
+## Download
+
+📦 **[Download the latest APK](https://github.com/Real3rr0r303YT/OpenShorts/releases/latest)** (Android 8.0+)
+
+Each release includes SHA-256 checksums so you can verify the file.
+
 ## Features
 
 - 📱 **Vertical full-screen feed** – swipe up/down between videos, tap to pause/resume
@@ -95,6 +101,12 @@ Every push and pull request is built by [`.github/workflows/build.yml`](.github/
 unit tests → lint → debug & unsigned release APK. The APKs and a `SHA256SUMS.txt` file are attached
 to each workflow run as artifacts, and the checksums are printed in the run summary, so anyone can
 verify that a downloaded APK was built from the public source.
+
+Pushing a version tag publishes a public GitHub release with the APK automatically:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
 
 ## Project structure
 
