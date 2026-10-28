@@ -43,6 +43,10 @@ data class AppSettings(
     /** The user's own Piped or Invidious instance (tried first), e.g. `https://pipedapi.example.org`. */
     val youTubeCustomInstance: String? = null,
     val youTubeCustomType: YouTubeInstanceType = YouTubeInstanceType.PIPED,
+    /** Fallback: read Shorts directly from m.youtube.com when all proxies fail (Google sees the IP). */
+    val youTubeDirect: Boolean = false,
+    /** Shows the TikTok feed (shared links in TikTok's embed player). */
+    val tikTokEnabled: Boolean = true,
 ) {
     fun isDark(systemDark: Boolean): Boolean = when (themeMode) {
         ThemeMode.SYSTEM -> systemDark

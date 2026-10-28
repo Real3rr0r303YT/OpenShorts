@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0]
+
+### Added
+- **TikTok embed engine** (`TikTokEmbedView`): shared or pasted TikTok links play in TikTok's official embed player
+  (`https://www.tiktok.com/embed/v2/{id}`) inside the swipe feed – hardware-accelerated WebView, autoplay with
+  sound, loop, video-only full-screen styling, known analytics hosts blocked, no third-party cookies
+- **Share → OpenShorts**: links shared from the TikTok app (or pasted) are added to a new **TikTok** feed tab;
+  metadata comes from TikTok's public oEmbed endpoint
+- **YouTube direct extractor** (`YouTubeWebExtractor`, opt-in): when all Piped/Invidious instances fail, Shorts are
+  found via `ytInitialData` on m.youtube.com and played from the HLS/MP4 links in `ytInitialPlayerResponse`;
+  signature-protected streams are not decrypted and are skipped
+- `FeedRepository`: stream resolution and the proxy → direct fallback for all platforms
+- **Auto-skip**: a video that cannot be played (no stream, player error, embed error or timeout) is skipped
+  automatically with a short notice; after 5 failures in a row the feed stops and shows the error
+
+### Changed
+- The "YouTube overloaded" message offers *Load directly from YouTube*
+- Privacy notes updated: TikTok embeds and the direct YouTube option contact TikTok/Google
+
 ## [1.0.5]
 
 ### Fixed

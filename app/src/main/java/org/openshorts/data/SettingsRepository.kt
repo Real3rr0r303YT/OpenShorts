@@ -40,6 +40,8 @@ class SettingsRepository(context: Context) {
                 youTubeEnabled = prefs[YOUTUBE_ENABLED] ?: defaults.youTubeEnabled,
                 youTubeCustomInstance = prefs[YOUTUBE_CUSTOM_INSTANCE],
                 youTubeCustomType = prefs[YOUTUBE_CUSTOM_TYPE].toEnum(defaults.youTubeCustomType),
+                youTubeDirect = prefs[YOUTUBE_DIRECT] ?: defaults.youTubeDirect,
+                tikTokEnabled = prefs[TIKTOK_ENABLED] ?: defaults.tikTokEnabled,
             )
         }
 
@@ -59,6 +61,9 @@ class SettingsRepository(context: Context) {
     suspend fun setShortsOnly(value: Boolean) = update { it[SHORTS_ONLY] = value }
     suspend fun setLoopVideos(value: Boolean) = update { it[LOOP_VIDEOS] = value }
     suspend fun setYouTubeEnabled(value: Boolean) = update { it[YOUTUBE_ENABLED] = value }
+
+    suspend fun setYouTubeDirect(value: Boolean) = update { it[YOUTUBE_DIRECT] = value }
+    suspend fun setTikTokEnabled(value: Boolean) = update { it[TIKTOK_ENABLED] = value }
 
     /** [url] null removes the custom instance. */
     suspend fun setYouTubeCustomInstance(url: String?, type: YouTubeInstanceType) = update {
@@ -85,6 +90,8 @@ class SettingsRepository(context: Context) {
         val YOUTUBE_ENABLED = booleanPreferencesKey("youtube_enabled")
         val YOUTUBE_CUSTOM_INSTANCE = stringPreferencesKey("youtube_custom_instance")
         val YOUTUBE_CUSTOM_TYPE = stringPreferencesKey("youtube_custom_type")
+        val YOUTUBE_DIRECT = booleanPreferencesKey("youtube_direct")
+        val TIKTOK_ENABLED = booleanPreferencesKey("tiktok_enabled")
     }
 }
 

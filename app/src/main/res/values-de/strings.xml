@@ -231,4 +231,19 @@
     <string name="youtube_instance">Eigene Piped-/Invidious-Instanz</string>
     <string name="youtube_instance_url">Instanz-URL (optional)</string>
     <string name="youtube_instance_hint">Wird zuerst gefragt, vor den öffentlichen Instanzen. Bei Piped die API-Adresse angeben (oft „pipedapi…“).</string>
+    <!-- TikTok embeds & direct YouTube -->
+    <string name="platform_tiktok">TikTok</string>
+    <string name="tiktok_tab_shared">Geteilt</string>
+    <string name="tiktok_paste">Link einfügen</string>
+    <string name="tiktok_add">Hinzufügen</string>
+    <string name="tiktok_paste_hint">Füge einen TikTok-Link ein. Tipp: In der TikTok-App auf Teilen → OpenShorts tippen, um Videos direkt hinzuzufügen.</string>
+    <string name="tiktok_empty">Noch keine TikTok-Videos. TikTok hat keine öffentliche Feed-Schnittstelle, daher spielt OpenShorts Links ab, die du teilst: In der TikTok-App auf Teilen → OpenShorts tippen oder einen Link einfügen.</string>
+    <string name="tiktok_added">TikTok-Video hinzugefügt</string>
+    <string name="tiktok_invalid_link">Das ist kein TikTok-Video-Link.</string>
+    <string name="tiktok_enabled">TikTok-Embeds</string>
+    <string name="tiktok_enabled_summary">Spielt geteilte TikTok-Links im offiziellen Embed-Player von TikTok ab. TikTok sieht dabei deine IP-Adresse und führt eigene Skripte aus; bekannte Analyse-Server werden blockiert.</string>
+    <string name="youtube_direct">Direkt von YouTube laden</string>
+    <string name="youtube_direct_summary">Wenn alle Piped-/Invidious-Instanzen ausfallen, Shorts von m.youtube.com lesen. Google sieht dann deine IP-Adresse. Videos mit geschützten Streams werden übersprungen.</string>
+    <string name="youtube_load_direct">Direkt von YouTube laden</string>
+    <string name="video_skipped">Video nicht verfügbar – übersprungen</string>
 </resources>

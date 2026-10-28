@@ -125,6 +125,9 @@ internal fun VideoPage(
     onFollow: () -> Unit,
     onOpenComments: () -> Unit,
     onOpenCreator: () -> Unit,
+    /** TikTok embed failed / became ready (used to skip broken videos). */
+    onEmbedError: () -> Unit = {},
+    onEmbedReady: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -163,7 +166,27 @@ internal fun VideoPage(
             contentScale = if (fill) ContentScale.Crop else ContentScale.Fit,
         )
 
-        if (player != null) {
+        if (video.isTikTok) {
+            if (isActive) {
+                TikTokEmbedView(
+                    videoId = video.tikTokId,
+                    playing = !showPlayIcon,
+                    onError = onEmbedError,
+                    onReady = onEmbedReady,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // Touch shield: swipes, taps and double-taps belong to the feed, not to the web page.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) awaitPointerEvent()
+                            }
+                        },
+                )
+            }
+        } else if (player != null) {
             VideoPlayerSurface(player = player, fill = fill, modifier = Modifier.fillMaxSize())
         }
 
@@ -291,7 +314,7 @@ internal fun VideoPage(
             }
         }
 
-        if (isActive) {
+        if (isActive && !video.isTikTok) {
             PlaybackProgress(
                 player = progressPlayer,
                 modifier = Modifier

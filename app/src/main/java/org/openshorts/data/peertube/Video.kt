@@ -29,7 +29,7 @@ data class Video(
     val id: Long = 0,
     /** Width / height as reported by PeerTube ≥ 6.1; null if unknown. */
     val aspectRatio: Float? = null,
-    /** Where the video comes from: [PLATFORM_PEERTUBE] or [PLATFORM_YOUTUBE]. */
+    /** Where the video comes from: [PLATFORM_PEERTUBE], [PLATFORM_YOUTUBE] or [PLATFORM_TIKTOK]. */
     val platform: String = PLATFORM_PEERTUBE,
 ) {
     /** YouTube videos are played through a Piped/Invidious proxy; likes etc. stay local. */
@@ -38,6 +38,12 @@ data class Video(
     /** The YouTube video id for [isYouTube] videos. */
     val youTubeId: String get() = uuid.removePrefix(YOUTUBE_UUID_PREFIX)
 
+    /** TikTok videos are shown in TikTok's official embed player (WebView), not in ExoPlayer. */
+    val isTikTok: Boolean get() = platform == PLATFORM_TIKTOK
+
+    /** The numeric TikTok video id for [isTikTok] videos. */
+    val tikTokId: String get() = uuid.removePrefix(TIKTOK_UUID_PREFIX)
+
     /** Portrait clip (9:16 and similar), the native short-video format. */
     val isVertical: Boolean get() = aspectRatio?.let { it < 0.9f } ?: false
 }
@@ -45,6 +51,8 @@ data class Video(
 const val PLATFORM_PEERTUBE = "peertube"
 const val PLATFORM_YOUTUBE = "youtube"
 const val YOUTUBE_UUID_PREFIX = "yt:"
+const val PLATFORM_TIKTOK = "tiktok"
+const val TIKTOK_UUID_PREFIX = "tt:"
 
 /** A (top-level) comment, already converted to plain text. */
 data class Comment(

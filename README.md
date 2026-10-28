@@ -40,6 +40,9 @@ Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums s
   as quick picks. Tabs for Trending, Latest and Local are one tap away.
 - ▶️ **YouTube Shorts (optional)** – a second feed via public **Piped/Invidious** proxies, switchable in the header
   (PeerTube | YouTube Shorts) with For You, Edits, Cybersecurity, Gaming, Tech and Anime tabs
+- 🎵 **TikTok embeds (optional)** – share a TikTok link to OpenShorts (or paste it) and it plays full screen in
+  TikTok's official embed player inside the swipe feed
+- ⏭️ **Auto-skip** – videos that cannot be played are skipped automatically instead of stopping the feed
 - 🔍 **Search** – free text, `#tags` and `@creator@server`, live creator suggestions, tech topic shortcuts
 - ❤️ **Action rail** on every video – glowing buttons with touch feedback and haptics: creator avatar with animated
   ring and follow button, like with particle burst and live counter, comments, save, share, spinning creator disc
@@ -55,7 +58,8 @@ Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums s
 - 🌐 **Server selection** – tech PeerTube servers as presets or any custom HTTPS server
 - 🔒 **Privacy by design**
   - Only the `INTERNET` permission, HTTPS only (cleartext traffic disabled)
-  - No Google Play Services, Firebase, analytics, crash reporters or ads
+  - No Google Play Services, Firebase, analytics, crash reporters or ads in the app itself
+    (optional TikTok embeds and direct YouTube loading contact TikTok/Google – see below)
   - Profile, likes, follows and chats are stored only on the device and excluded from cloud backups
 - 🛠️ **Transparent builds** – every APK is built by GitHub Actions with published SHA-256 checksums
 
@@ -79,6 +83,17 @@ Public instances are run by volunteers and are often rate-limited or blocked by 
 of them in order. If none responds, the YouTube feed shows an error while PeerTube keeps working.
 Likes, saves and follows of YouTube videos are stored only on the device. The source can be turned off in the settings,
 and you can enter **your own Piped or Invidious instance** (Settings → Feed & server), which is always tried first.
+
+### TikTok embeds and direct YouTube loading
+
+- **TikTok:** TikTok has no public discovery API, so the TikTok tab plays links you share to OpenShorts
+  (TikTok app → Share → OpenShorts) or paste. They play in TikTok's **official embed player**; TikTok sees your IP
+  address and runs its own scripts in that player. Known analytics/ad hosts are blocked and third-party cookies are
+  off, but this is not as private as PeerTube. Can be turned off in the settings.
+- **Load directly from YouTube** (off by default): if all Piped/Invidious instances fail, Shorts are read from
+  m.youtube.com (`ytInitialData` for search, `ytInitialPlayerResponse` for streams). Google then sees your IP address.
+  Streams protected by YouTube's signature cipher are **not** decrypted – those videos are skipped, so this fallback
+  often finds only part of the videos. YouTube's terms do not allow third-party clients; use it at your own discretion.
 
 ### Current limitations (honest list)
 

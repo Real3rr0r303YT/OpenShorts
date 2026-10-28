@@ -51,6 +51,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setShortsOnly(value: Boolean) = launch { repository.setShortsOnly(value) }
     fun setLoopVideos(value: Boolean) = launch { repository.setLoopVideos(value) }
     fun setYouTubeEnabled(value: Boolean) = launch { repository.setYouTubeEnabled(value) }
+    fun setYouTubeDirect(value: Boolean) = launch { repository.setYouTubeDirect(value) }
+    fun setTikTokEnabled(value: Boolean) = launch { repository.setTikTokEnabled(value) }
 
     /** Saves the user's own Piped/Invidious instance; blank input removes it. Returns false if invalid. */
     fun setYouTubeCustomInstance(input: String, type: YouTubeInstanceType): Boolean {

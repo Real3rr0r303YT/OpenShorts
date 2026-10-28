@@ -257,12 +257,24 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setLoopVideos,
             )
             SwitchRow(
+                title = R.string.tiktok_enabled,
+                summary = R.string.tiktok_enabled_summary,
+                checked = settings.tikTokEnabled,
+                onCheckedChange = viewModel::setTikTokEnabled,
+            )
+            SwitchRow(
                 title = R.string.youtube_enabled,
                 summary = R.string.youtube_enabled_summary,
                 checked = settings.youTubeEnabled,
                 onCheckedChange = viewModel::setYouTubeEnabled,
             )
             if (settings.youTubeEnabled) {
+                SwitchRow(
+                    title = R.string.youtube_direct,
+                    summary = R.string.youtube_direct_summary,
+                    checked = settings.youTubeDirect,
+                    onCheckedChange = viewModel::setYouTubeDirect,
+                )
                 YouTubeInstanceField(
                     currentUrl = settings.youTubeCustomInstance.orEmpty(),
                     currentType = settings.youTubeCustomType,

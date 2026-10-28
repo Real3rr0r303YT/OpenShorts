@@ -24,11 +24,13 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.openshorts.OpenShortsApp
+import org.openshorts.R
 import org.openshorts.data.SHORT_CLIP_MAX_SECONDS
 import org.openshorts.data.SearchQuery
 import org.openshorts.data.TrendCategory
@@ -58,8 +60,8 @@ enum class FeedTab(
     LOCAL("-publishedAt", true),
 }
 
-/** The two content sources offered in the feed header. */
-enum class FeedPlatform { PEERTUBE, YOUTUBE }
+/** The content sources offered in the feed header. */
+enum class FeedPlatform { PEERTUBE, YOUTUBE, TIKTOK }
 
 /** What the feed is currently showing. */
 sealed interface FeedContent {
@@ -70,6 +72,9 @@ sealed interface FeedContent {
      * the "For You" mix that rotates through several Shorts searches.
      */
     data class YouTube(val category: TrendCategory? = null, val query: String? = null) : FeedContent
+
+    /** TikTok links shared to / pasted into OpenShorts, played in TikTok's embed player. */
+    data object TikTok : FeedContent
 
     data class Search(val query: SearchQuery) : FeedContent
 
@@ -107,7 +112,28 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private val client = app.peerTubeClient
     private val profiles = app.profileRepository
     private val accounts = app.accountRepository
-    private val youTube = app.youTubeClient
+    private val feed = app.feedRepository
+    private val tikTok = app.tikTokResolver
+
+    /** Feed messages (string resources) shown as a snackbar, e.g. "video skipped". */
+    private val _notices = MutableSharedFlow<Int>(extraBufferCapacity = 4)
+    val notices: SharedFlow<Int> = _notices.asSharedFlow()
+
+    /**
+     * Index of a video that could not be played; the screen scrolls to the next one.
+     * Instead of a global error, broken or blocked videos are simply skipped.
+     */
+    private val _skipFrom = MutableSharedFlow<Int>(extraBufferCapacity = 4)
+    val skipFrom: SharedFlow<Int> = _skipFrom.asSharedFlow()
+
+    /** Consecutive skipped videos; after [MAX_AUTO_SKIPS] the feed stops skipping and shows the error. */
+    private var failStreak = 0
+    private val failedUuids = HashSet<String>()
+
+    /** Whether the TikTok source is enabled in the settings. */
+    val tikTokEnabled: StateFlow<Boolean> = app.settingsRepository.settings
+        .map { it.tikTokEnabled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /** Whether the "YouTube Shorts" source is enabled in the settings. */
     val youTubeEnabled: StateFlow<Boolean> = app.settingsRepository.settings
@@ -177,12 +203,13 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (index == _state.value.activePlayer) {
                         _state.update { it.copy(isBuffering = playbackState == Player.STATE_BUFFERING) }
+                        if (playbackState == Player.STATE_READY) failStreak = 0
                     }
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
                     if (index == _state.value.activePlayer) {
-                        _state.update { it.copy(playbackFailed = true, isBuffering = false) }
+                        _state.value.playingUuid?.let(::onVideoFailed)
                     } else {
                         _state.update { it.copy(preloadedUuid = null) }
                     }
@@ -192,10 +219,10 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             combine(app.settingsRepository.settings, selectedContent) { settings, content ->
-                val allowed = if (content is FeedContent.YouTube && !settings.youTubeEnabled) {
-                    FeedContent.Tab(FeedTab.FOR_YOU)
-                } else {
-                    content
+                val allowed = when {
+                    content is FeedContent.YouTube && !settings.youTubeEnabled -> FeedContent.Tab(FeedTab.FOR_YOU)
+                    content is FeedContent.TikTok && !settings.tikTokEnabled -> FeedContent.Tab(FeedTab.FOR_YOU)
+                    else -> content
                 }
                 FeedSource(settings.instanceUrl, settings.shortsOnly, allowed)
             }
@@ -231,6 +258,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         selectedContent.value = when (platform) {
             FeedPlatform.PEERTUBE -> FeedContent.Tab(FeedTab.FOR_YOU)
             FeedPlatform.YOUTUBE -> FeedContent.YouTube()
+            FeedPlatform.TIKTOK -> FeedContent.TikTok
         }
     }
 
@@ -240,7 +268,64 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
     /** The platform the feed currently shows; searches go to the same platform. */
     val platform: FeedPlatform
-        get() = if (_state.value.content.isYouTube) FeedPlatform.YOUTUBE else FeedPlatform.PEERTUBE
+        get() = _state.value.content.platform
+
+    /**
+     * Adds a shared or pasted TikTok link to the TikTok feed and opens it there.
+     * Returns immediately; problems are reported via [notices].
+     */
+    fun addTikTokLink(text: String) {
+        viewModelScope.launch {
+            try {
+                val video = tikTok.resolve(text)
+                profiles.addTikTok(video)
+                if (selectedContent.value == FeedContent.TikTok) refresh() else selectedContent.value = FeedContent.TikTok
+                _notices.tryEmit(R.string.tiktok_added)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _notices.tryEmit(R.string.tiktok_invalid_link)
+            }
+        }
+    }
+
+    fun removeTikTok(video: Video) {
+        viewModelScope.launch {
+            profiles.removeTikTok(video.uuid)
+            refresh()
+        }
+    }
+
+    /** Lets the user allow the direct m.youtube.com fallback from the error banner. */
+    fun enableYouTubeDirect() {
+        viewModelScope.launch {
+            app.settingsRepository.setYouTubeDirect(true)
+            refresh()
+        }
+    }
+
+    /**
+     * A video could not be played (no stream, player error, embed failed).
+     * Skips to the next video unless too many failed in a row.
+     */
+    fun onVideoFailed(uuid: String) {
+        val state = _state.value
+        if (uuid != state.playingUuid || !failedUuids.add(uuid)) return
+        failStreak++
+        if (failStreak > MAX_AUTO_SKIPS) {
+            _state.update { it.copy(playbackFailed = true, isBuffering = false) }
+            return
+        }
+        val index = state.videos.indexOfFirst { it.uuid == uuid }
+        if (index < 0) return
+        _notices.tryEmit(R.string.video_skipped)
+        _skipFrom.tryEmit(index)
+    }
+
+    /** The TikTok embed reported a playable video. */
+    fun onVideoReady() {
+        failStreak = 0
+    }
 
     fun search(query: SearchQuery) {
         selectedContent.value = if (platform == FeedPlatform.YOUTUBE) {
@@ -288,6 +373,8 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         ytCursors.clear()
         ytExhausted.clear()
         ytRotation = 0
+        failStreak = 0
+        failedUuids.clear()
         streamCache.clear()
         loadJob?.cancel()
         playJob?.cancel()
@@ -329,6 +416,12 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 // A page may contain few short clips, so fetch a few pages per load.
                 while (batch.size < MIN_BATCH && !end && pages < MAX_PAGES_PER_LOAD) {
                     val yt = src.content as? FeedContent.YouTube
+                    if (src.content is FeedContent.TikTok) {
+                        // The shared links, in the order they were added; nothing to rank or filter.
+                        batch += profiles.tikTokVideos.first()
+                        end = true
+                        break
+                    }
                     val page = if (yt != null) {
                         fetchYouTube(yt).also { end = it.second }.first
                     } else {
@@ -378,7 +471,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         val open = queries.filter { it !in ytExhausted }
         if (open.isEmpty()) return emptyList<Video>() to true
         val query = open[ytRotation++ % open.size]
-        val page = youTube.searchShorts(query, ytCursors[query])
+        val page = feed.searchYouTube(query, ytCursors[query])
         val next = page.next
         if (next == null) ytExhausted += query else ytCursors[query] = next
         return page.videos to (ytExhausted.size == queries.size)
@@ -406,7 +499,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 is SearchQuery.Channel -> client.channelVideos(src.instanceUrl, query.handle, start, PAGE_SIZE)
             }
-            is FeedContent.Collection, is FeedContent.YouTube -> emptyList()
+            is FeedContent.Collection, is FeedContent.YouTube, FeedContent.TikTok -> emptyList()
         }
     }
 
@@ -427,6 +520,16 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         playJob?.cancel()
         preloadJob?.cancel()
         val previous = activePlayer
+
+        if (video.isTikTok) {
+            // Played by the embed WebView on the page itself.
+            previous.pause()
+            _state.update {
+                it.copy(playingUuid = video.uuid, userPaused = false, playbackFailed = false, isBuffering = false)
+            }
+            preloadNext(src, index)
+            return
+        }
 
         if (state.preloadedUuid == video.uuid) {
             // Swap: the standby player already has this video buffered – start instantly.
@@ -454,9 +557,9 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(playingUuid = video.uuid, preloadedUuid = null, userPaused = false, playbackFailed = false)
         }
         playJob = viewModelScope.launch {
-            val url = resolveStream(video.instanceUrl.ifEmpty { src.instanceUrl }, video.uuid)
+            val url = resolveStream(video, src.instanceUrl)
             if (url == null) {
-                _state.update { it.copy(playbackFailed = true) }
+                onVideoFailed(video.uuid)
                 return@launch
             }
             activePlayer.setMediaItem(MediaItem.fromUri(url))
@@ -469,10 +572,10 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     /** Buffers the next video on the standby player so the next swipe starts instantly. */
     private fun preloadNext(src: FeedSource, index: Int) {
         val next = _state.value.videos.getOrNull(index + 1) ?: return
-        if (_state.value.preloadedUuid == next.uuid) return
+        if (next.isTikTok || _state.value.preloadedUuid == next.uuid) return
         preloadJob?.cancel()
         preloadJob = viewModelScope.launch {
-            val url = resolveStream(next.instanceUrl.ifEmpty { src.instanceUrl }, next.uuid) ?: return@launch
+            val url = resolveStream(next, src.instanceUrl) ?: return@launch
             val standby = players[standbyIndex]
             standby.playWhenReady = false
             standby.setMediaItem(MediaItem.fromUri(url))
@@ -481,16 +584,12 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun resolveStream(instanceUrl: String, uuid: String): String? {
-        val video = _state.value.videos.firstOrNull { it.uuid == uuid }
-        return streamCache[uuid]
-            ?: runCatching {
-                if (video?.isYouTube == true) youTube.streamUrl(video) else client.streamUrl(instanceUrl, uuid)
-            }
+    private suspend fun resolveStream(video: Video, fallbackInstance: String): String? =
+        streamCache[video.uuid]
+            ?: runCatching { feed.resolveStream(video, fallbackInstance) }
                 .onFailure { if (it is CancellationException) throw it }
                 .getOrNull()
-                ?.also { streamCache[uuid] = it }
-    }
+                ?.also { streamCache[video.uuid] = it }
 
     fun togglePlayPause() {
         val paused = !_state.value.userPaused
@@ -558,6 +657,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         const val MAX_PAGES_PER_LOAD = 4
         const val PRELOAD_THRESHOLD = 3
         const val MAX_EMPTY_LOADS = 3
+        const val MAX_AUTO_SKIPS = 5
     }
 }
 
@@ -572,6 +672,14 @@ internal fun youTubeQueries(content: FeedContent.YouTube): List<String> = when {
 val FeedContent.isYouTube: Boolean
     get() = this is FeedContent.YouTube ||
         (this is FeedContent.Collection && videos.isNotEmpty() && videos.all { it.isYouTube })
+
+/** The platform a feed content belongs to (searches go to the same platform). */
+val FeedContent.platform: FeedPlatform
+    get() = when {
+        this is FeedContent.TikTok -> FeedPlatform.TIKTOK
+        isYouTube -> FeedPlatform.YOUTUBE
+        else -> FeedPlatform.PEERTUBE
+    }
 
 /** The creator of [video] as a followable [Creator], if the channel is known. */
 fun Video.toCreator(): Creator? {

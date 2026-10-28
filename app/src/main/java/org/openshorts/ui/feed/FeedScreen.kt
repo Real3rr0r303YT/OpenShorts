@@ -33,7 +33,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,7 +88,13 @@ fun FeedScreen(
     val followed by viewModel.followedHandles.collectAsStateWithLifecycle()
     val loggedIn by viewModel.loggedIn.collectAsStateWithLifecycle()
     val youTubeEnabled by viewModel.youTubeEnabled.collectAsStateWithLifecycle()
+    val tikTokEnabled by viewModel.tikTokEnabled.collectAsStateWithLifecycle()
+    var pasteOpen by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
     val snackbarHost = remember { SnackbarHostState() }
+    LaunchedEffect(viewModel) {
+        viewModel.notices.collect { snackbarHost.showSnackbar(context.getString(it)) }
+    }
     val syncErrorText = stringResource(R.string.sync_error)
     LaunchedEffect(viewModel) {
         viewModel.syncErrors.collect { detail ->
@@ -127,6 +137,15 @@ fun FeedScreen(
                     onAction = viewModel::retry,
                     secondaryLabel = stringResource(R.string.switch_to_peertube),
                     onSecondary = { viewModel.selectPlatform(FeedPlatform.PEERTUBE) },
+                    tertiaryLabel = stringResource(R.string.youtube_load_direct),
+                    onTertiary = viewModel::enableYouTubeDirect,
+                )
+
+            state.videos.isEmpty() && state.content == FeedContent.TikTok && state.endReached ->
+                FeedMessage(
+                    text = stringResource(R.string.tiktok_empty),
+                    actionLabel = stringResource(R.string.tiktok_paste),
+                    onAction = { pasteOpen = true },
                 )
 
             state.videos.isEmpty() && state.error != null ->
@@ -179,6 +198,8 @@ fun FeedScreen(
                 content = state.content,
                 loggedIn = loggedIn,
                 youTubeEnabled = youTubeEnabled,
+                tikTokEnabled = tikTokEnabled,
+                onPasteTikTok = { pasteOpen = true },
                 onSelectPlatform = { platform ->
                     if (platform == viewModel.platform) viewModel.refresh() else viewModel.selectPlatform(platform)
                 },
@@ -216,6 +237,16 @@ fun FeedScreen(
                 onClose = { searchOpen = false },
             )
         }
+    }
+
+    if (pasteOpen) {
+        TikTokPasteDialog(
+            onAdd = { link ->
+                pasteOpen = false
+                viewModel.addTikTokLink(link)
+            },
+            onDismiss = { pasteOpen = false },
+        )
     }
 
     commentsFor?.let { video ->
@@ -264,6 +295,14 @@ private fun VideoPager(
             .distinctUntilChanged()
             .collect { viewModel.onPageSelected(it) }
     }
+    // A video could not be played: move on to the next one instead of showing an error.
+    LaunchedEffect(pagerState) {
+        viewModel.skipFrom.collect { index ->
+            if (index == pagerState.currentPage && index + 1 < pagerState.pageCount) {
+                pagerState.animateScrollToPage(index + 1)
+            }
+        }
+    }
 
     PullToRefreshBox(
         isRefreshing = false,
@@ -310,6 +349,8 @@ private fun VideoPager(
                 onFollow = { viewModel.toggleFollow(video) },
                 onOpenComments = { onOpenComments(video) },
                 onOpenCreator = { onOpenCreator(video) },
+                onEmbedError = { viewModel.onVideoFailed(video.uuid) },
+                onEmbedReady = viewModel::onVideoReady,
             )
         }
     }
@@ -324,6 +365,8 @@ private fun FeedHeader(
     content: FeedContent,
     loggedIn: Boolean,
     youTubeEnabled: Boolean,
+    tikTokEnabled: Boolean,
+    onPasteTikTok: () -> Unit,
     onSelectPlatform: (FeedPlatform) -> Unit,
     onSelectTab: (FeedTab) -> Unit,
     onSelectYouTubeCategory: (TrendCategory?) -> Unit,
@@ -331,11 +374,19 @@ private fun FeedHeader(
     onClearSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val platform = if (content.isYouTube) FeedPlatform.YOUTUBE else FeedPlatform.PEERTUBE
-    val browsing = content is FeedContent.Tab || (content is FeedContent.YouTube && content.query == null)
+    val platform = content.platform
+    val browsing = content is FeedContent.Tab || content is FeedContent.TikTok ||
+        (content is FeedContent.YouTube && content.query == null)
+    val platforms = FeedPlatform.entries.filter {
+        when (it) {
+            FeedPlatform.PEERTUBE -> true
+            FeedPlatform.YOUTUBE -> youTubeEnabled
+            FeedPlatform.TIKTOK -> tikTokEnabled
+        }
+    }
     Column(modifier = modifier.padding(horizontal = 8.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        if (youTubeEnabled && browsing) {
-            PlatformSwitch(selected = platform, onSelect = onSelectPlatform)
+        if (platforms.size > 1 && browsing) {
+            PlatformSwitch(platforms = platforms, selected = platform, onSelect = onSelectPlatform)
         }
         Box(Modifier.fillMaxWidth()) {
             if (browsing) {
@@ -359,6 +410,9 @@ private fun FeedHeader(
                                 onClick = { onSelectYouTubeCategory(category) },
                             )
                         }
+                    } else if (content is FeedContent.TikTok) {
+                        TabLabel(text = stringResource(R.string.tiktok_tab_shared), selected = true, onClick = {})
+                        TabLabel(text = "+ " + stringResource(R.string.tiktok_paste), selected = false, onClick = onPasteTikTok)
                     } else if (content is FeedContent.Tab) {
                         FeedTab.entries.filter { loggedIn || !it.requiresLogin }.forEach { tab ->
                             TabLabel(
@@ -377,7 +431,7 @@ private fun FeedHeader(
                     is FeedContent.Search -> content.query.text
                     is FeedContent.Collection -> content.title
                     is FeedContent.YouTube -> "▶ " + content.query.orEmpty()
-                    is FeedContent.Tab -> ""
+                    is FeedContent.Tab, FeedContent.TikTok -> ""
                 }
                 Row(
                     modifier = Modifier
@@ -409,7 +463,7 @@ private fun FeedHeader(
 
 /** Pill switch between the PeerTube network and YouTube Shorts. */
 @Composable
-private fun PlatformSwitch(selected: FeedPlatform, onSelect: (FeedPlatform) -> Unit) {
+private fun PlatformSwitch(platforms: List<FeedPlatform>, selected: FeedPlatform, onSelect: (FeedPlatform) -> Unit) {
     Row(
         modifier = Modifier
             .padding(top = 4.dp)
@@ -417,10 +471,16 @@ private fun PlatformSwitch(selected: FeedPlatform, onSelect: (FeedPlatform) -> U
             .background(Color.Black.copy(alpha = 0.35f))
             .padding(3.dp),
     ) {
-        FeedPlatform.entries.forEach { platform ->
+        platforms.forEach { platform ->
             val isSelected = platform == selected
             Text(
-                text = stringResource(if (platform == FeedPlatform.PEERTUBE) R.string.platform_peertube else R.string.platform_youtube),
+                text = stringResource(
+                    when (platform) {
+                        FeedPlatform.PEERTUBE -> R.string.platform_peertube
+                        FeedPlatform.YOUTUBE -> R.string.platform_youtube
+                        FeedPlatform.TIKTOK -> R.string.platform_tiktok
+                    },
+                ),
                 color = if (isSelected) Color.Black else Color.White,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
@@ -477,6 +537,8 @@ private fun FeedMessage(
     onAction: () -> Unit,
     secondaryLabel: String? = null,
     onSecondary: () -> Unit = {},
+    tertiaryLabel: String? = null,
+    onTertiary: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -492,5 +554,36 @@ private fun FeedMessage(
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onSecondary) { Text(secondaryLabel, color = Color.White) }
         }
+        if (tertiaryLabel != null) {
+            TextButton(onClick = onTertiary) { Text(tertiaryLabel, color = Color.White.copy(alpha = 0.85f)) }
+        }
     }
+}
+
+/** Paste a TikTok link (e.g. copied from the TikTok app) to add it to the TikTok feed. */
+@Composable
+private fun TikTokPasteDialog(onAdd: (String) -> Unit, onDismiss: () -> Unit) {
+    var link by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.tiktok_paste)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.tiktok_paste_hint), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = link,
+                    onValueChange = { link = it },
+                    placeholder = { Text("https://www.tiktok.com/@…/video/…") },
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onAdd(link) }, enabled = link.contains("tiktok.com", ignoreCase = true)) {
+                Text(stringResource(R.string.tiktok_add))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }

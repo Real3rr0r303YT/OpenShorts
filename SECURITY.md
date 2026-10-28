@@ -35,4 +35,7 @@ credit you in the release notes unless you prefer to stay anonymous.
 - Settings and the local profile live in DataStore files that are excluded from cloud backups.
 - The optional YouTube Shorts feed only contacts public Piped/Invidious instances (HTTPS); those instances see the
   search terms and which videos are played, YouTube/Google itself is never contacted by the app.
+- Optional TikTok embeds load TikTok's official embed page in a WebView (JavaScript on, file/content access off,
+  third-party cookies off, known analytics hosts blocked, navigation away from the embed blocked). TikTok sees the
+  IP address. The optional direct YouTube loading contacts m.youtube.com and is off by default.
 - Release APKs are built publicly by GitHub Actions; SHA-256 checksums are published with every run.

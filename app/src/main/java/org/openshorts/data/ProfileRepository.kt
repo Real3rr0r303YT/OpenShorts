@@ -58,6 +58,9 @@ class ProfileRepository(context: Context) {
     /** Bookmarked videos, newest first. */
     val savedVideos: Flow<List<Video>> = prefs.map { decode(it[SAVED_VIDEOS], videoList) }
 
+    /** TikTok links shared to / pasted into OpenShorts, newest first. */
+    val tikTokVideos: Flow<List<Video>> = prefs.map { decode(it[TIKTOK_VIDEOS], videoList) }
+
     /** Followed creators, most recent first. */
     val following: Flow<List<Creator>> = prefs.map { decode(it[FOLLOWING], creatorList) }
 
@@ -114,6 +117,20 @@ class ProfileRepository(context: Context) {
         return added
     }
 
+    /** Adds a TikTok video to the TikTok feed (moves it to the top if already there). */
+    suspend fun addTikTok(video: Video) {
+        dataStore.edit { p ->
+            val list = decode(p[TIKTOK_VIDEOS], videoList).filterNot { it.uuid == video.uuid }
+            p[TIKTOK_VIDEOS] = json.encodeToString(videoList, (listOf(video) + list).take(MAX_ENTRIES))
+        }
+    }
+
+    suspend fun removeTikTok(uuid: String) {
+        dataStore.edit { p ->
+            p[TIKTOK_VIDEOS] = json.encodeToString(videoList, decode(p[TIKTOK_VIDEOS], videoList).filterNot { it.uuid == uuid })
+        }
+    }
+
     suspend fun clearLikes() {
         dataStore.edit { it.remove(LIKED_VIDEOS) }
     }
@@ -154,5 +171,6 @@ class ProfileRepository(context: Context) {
         val LIKED_VIDEOS = stringPreferencesKey("liked_videos")
         val SAVED_VIDEOS = stringPreferencesKey("saved_videos")
         val FOLLOWING = stringPreferencesKey("following")
+        val TIKTOK_VIDEOS = stringPreferencesKey("tiktok_videos")
     }
 }

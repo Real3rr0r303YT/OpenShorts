@@ -1,5 +1,6 @@
 package org.openshorts
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.openshorts.data.AppSettings
 import org.openshorts.ui.account.AccountViewModel
@@ -71,9 +73,13 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 
 class MainActivity : ComponentActivity() {
 
+    /** Text shared to OpenShorts (e.g. a TikTok link), consumed by the feed. */
+    private val sharedText = MutableStateFlow<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) handleShare(intent)
 
         val settingsFlow = (application as OpenShortsApp).settingsRepository.settings
         setContent {
@@ -82,6 +88,7 @@ class MainActivity : ComponentActivity() {
             settings?.let { current ->
                 OpenShortsRoot(
                     settings = current,
+                    sharedText = sharedText,
                     onLightSystemBarIcons = { light ->
                         val style = if (light) {
                             SystemBarStyle.dark(Color.TRANSPARENT)
@@ -92,6 +99,17 @@ class MainActivity : ComponentActivity() {
                     },
                 )
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleShare(intent)
+    }
+
+    private fun handleShare(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND) {
+            sharedText.value = intent.getStringExtra(Intent.EXTRA_TEXT)
         }
     }
 }
@@ -111,6 +129,7 @@ private enum class Page { EDIT_PROFILE, LOGIN, UPLOAD }
 @Composable
 private fun OpenShortsRoot(
     settings: AppSettings,
+    sharedText: MutableStateFlow<String?>,
     onLightSystemBarIcons: (Boolean) -> Unit,
 ) {
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
@@ -126,6 +145,17 @@ private fun OpenShortsRoot(
     val accountViewModel: AccountViewModel = viewModel()
     val account by accountViewModel.account.collectAsStateWithLifecycle()
     val sessionExpired by accountViewModel.sessionExpired.collectAsStateWithLifecycle()
+    // A link shared to OpenShorts (TikTok app → Share → OpenShorts) goes to the TikTok feed.
+    val shared by sharedText.collectAsStateWithLifecycle()
+    LaunchedEffect(shared) {
+        val text = shared ?: return@LaunchedEffect
+        sharedText.value = null
+        page = null
+        openChatId = null
+        tab = Tab.HOME
+        feedViewModel.addTikTokLink(text)
+    }
+
     // Uploading needs a PeerTube account: the "+" opens the login first.
     val openUpload = { page = if (account != null) Page.UPLOAD else Page.LOGIN }
 

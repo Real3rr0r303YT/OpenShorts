@@ -12,7 +12,10 @@ import org.openshorts.data.YouTubeInstanceType
 import org.openshorts.data.peertube.Http
 import org.openshorts.data.peertube.PeerTubeAccountApi
 import org.openshorts.data.peertube.PeerTubeClient
+import org.openshorts.data.FeedRepository
+import org.openshorts.data.tiktok.TikTokResolver
 import org.openshorts.data.youtube.YouTubeBackend
+import org.openshorts.data.youtube.YouTubeWebExtractor
 import org.openshorts.data.youtube.YouTubeClient
 
 /**
@@ -49,6 +52,14 @@ class OpenShortsApp : Application() {
     val accountRepository: AccountRepository by lazy {
         AccountRepository(this, PeerTubeAccountApi(http, json, userAgent), profileRepository)
     }
+
+    /** Content and stream resolution for all platforms (incl. YouTube proxy → direct fallback). */
+    val feedRepository: FeedRepository by lazy {
+        FeedRepository(peerTubeClient, youTubeClient, YouTubeWebExtractor(http, json), settingsRepository)
+    }
+
+    /** Shared TikTok links → videos for the embed player. */
+    val tikTokResolver: TikTokResolver by lazy { TikTokResolver(userAgent, json) }
 
     /** YouTube Shorts through public Piped/Invidious proxies. */
     val youTubeClient: YouTubeClient by lazy {

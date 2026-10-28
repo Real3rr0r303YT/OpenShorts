@@ -233,4 +233,19 @@
     <string name="youtube_instance">Own Piped / Invidious instance</string>
     <string name="youtube_instance_url">Instance URL (optional)</string>
     <string name="youtube_instance_hint">Tried first, before the public instances. For Piped use the API address (often "pipedapi…").</string>
+    <!-- TikTok embeds & direct YouTube -->
+    <string name="platform_tiktok">TikTok</string>
+    <string name="tiktok_tab_shared">Shared</string>
+    <string name="tiktok_paste">Add link</string>
+    <string name="tiktok_add">Add</string>
+    <string name="tiktok_paste_hint">Paste a TikTok link. Tip: in the TikTok app tap Share → OpenShorts to add videos directly.</string>
+    <string name="tiktok_empty">No TikTok videos yet. TikTok has no public feed API, so OpenShorts plays links you share to it: in the TikTok app tap Share → OpenShorts, or paste a link.</string>
+    <string name="tiktok_added">TikTok video added</string>
+    <string name="tiktok_invalid_link">This is not a TikTok video link.</string>
+    <string name="tiktok_enabled">TikTok embeds</string>
+    <string name="tiktok_enabled_summary">Plays shared TikTok links in TikTok\'s official embed player. TikTok sees your IP address and runs its own scripts there; known analytics hosts are blocked.</string>
+    <string name="youtube_direct">Load directly from YouTube</string>
+    <string name="youtube_direct_summary">When all Piped/Invidious instances fail, read Shorts from m.youtube.com. Google then sees your IP address. Videos with protected streams are skipped.</string>
+    <string name="youtube_load_direct">Load directly from YouTube</string>
+    <string name="video_skipped">Video not available – skipped</string>
 </resources>
