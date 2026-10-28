@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Feed -->
+    <string name="feed_error">Videos konnten nicht geladen werden.\n%1$s</string>
+    <string name="feed_empty">Auf dieser Instanz wurden keine Videos gefunden.</string>
+    <string name="playback_error">Dieses Video kann nicht abgespielt werden.</string>
+    <string name="video_stats">%1$s Aufrufe · %2$s Likes · %3$s</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="play">Abspielen</string>
+    <string name="share">Teilen</string>
+    <string name="open_in_browser">Auf Instanz öffnen</string>
+
+    <!-- Settings -->
+    <string name="settings">Einstellungen</string>
+    <string name="back">Zurück</string>
+    <string name="save">Speichern</string>
+    <string name="reset">Zurücksetzen</string>
+
+    <string name="donate_title">Support OpenShorts</string>
+    <string name="donate_body">OpenShorts ist kostenlos, quelloffen und frei von Werbung und Tracking. Wenn dir die App gefällt, kannst du die Entwicklung mit einem Kaffee unterstützen.</string>
+    <string name="donate_button">Support OpenShorts</string>
+
+    <string name="section_appearance">Darstellung</string>
+    <string name="theme_mode">Design</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="dynamic_color">Dynamische Farben</string>
+    <string name="dynamic_color_summary">Farben aus dem Hintergrundbild verwenden (Material You)</string>
+    <string name="dynamic_color_unsupported">Erfordert Android 12 oder neuer</string>
+    <string name="pure_black">Reines Schwarz</string>
+    <string name="pure_black_summary">Echter schwarzer Hintergrund im Dunkelmodus (AMOLED)</string>
+    <string name="color_scheme">Farbschema</string>
+    <string name="palette_ocean">Ozean</string>
+    <string name="palette_forest">Wald</string>
+    <string name="palette_sunset">Abendrot</string>
+    <string name="palette_grape">Traube</string>
+    <string name="palette_monochrome">Mono</string>
+    <string name="font">Schriftart</string>
+    <string name="font_system">Systemstandard</string>
+    <string name="font_sans_serif">Serifenlos</string>
+    <string name="font_serif">Serif</string>
+    <string name="font_monospace">Monospace</string>
+    <string name="font_cursive">Kursiv</string>
+
+    <string name="section_feed">Feed</string>
+    <string name="instance">PeerTube-Instanz</string>
+    <string name="instance_summary">Videos werden anonym ausschließlich von diesem Server geladen.</string>
+    <string name="instance_invalid">Bitte eine gültige https://-Adresse eingeben.</string>
+    <string name="shorts_only">Nur kurze Videos</string>
+    <string name="shorts_only_summary">Nur Videos mit bis zu 3 Minuten Länge anzeigen</string>
+    <string name="loop_videos">Videos wiederholen</string>
+    <string name="loop_videos_summary">Video am Ende automatisch neu starten</string>
+
+    <string name="section_about">Über</string>
+    <string name="about_privacy">Kein Tracking. Keine Analytics. Keine Werbung. Kein Konto.</string>
+    <string name="about_license">OpenShorts ist freie Software, lizenziert unter der GNU General Public License v3.0.</string>
+    <string name="version">Version %1$s</string>
+    <string name="source_code">Quellcode</string>
+</resources>

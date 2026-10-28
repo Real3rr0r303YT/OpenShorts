@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Window-level theme only. All in-app theming (color schemes, dynamic color,
+        dark mode, custom fonts) is handled by the Compose theme engine in
+        org.openshorts.ui.theme. This theme just avoids a white flash on start.
+    -->
+    <style name="Theme.OpenShorts" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/openshorts_background_light</item>
+        <item name="android:colorPrimary">@color/openshorts_primary</item>
+        <item name="android:colorAccent">@color/openshorts_primary</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

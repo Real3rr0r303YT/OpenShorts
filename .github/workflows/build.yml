@@ -1,0 +1,75 @@
+name: Build
+
+on:
+  push:
+    branches: [ '**' ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test & build APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Also validates the checksum of gradle/wrapper/gradle-wrapper.jar.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew --no-daemon lintDebug
+
+      - name: Build debug and unsigned release APKs
+        run: ./gradlew --no-daemon assembleDebug assembleRelease
+
+      - name: Collect APKs and checksums
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/*.apk dist/OpenShorts-${GITHUB_SHA::7}-debug.apk
+          cp app/build/outputs/apk/release/*.apk dist/OpenShorts-${GITHUB_SHA::7}-release-unsigned.apk
+          cd dist && sha256sum *.apk | tee SHA256SUMS.txt
+
+      - name: Build summary
+        run: |
+          {
+            echo "### OpenShorts build \`${GITHUB_SHA::7}\`"
+            echo '```'
+            cat dist/SHA256SUMS.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenShorts-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report-${{ github.sha }}
+          path: app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore

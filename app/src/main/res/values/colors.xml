@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colors (Ocean palette). Runtime colors come from the Compose theme engine. -->
+    <color name="openshorts_primary">#FF0B6E99</color>
+    <color name="openshorts_background_light">#FFF6FAFE</color>
+    <color name="openshorts_background_dark">#FF0F1417</color>
+    <color name="ic_launcher_background">#FF0B6E99</color>
+</resources>
