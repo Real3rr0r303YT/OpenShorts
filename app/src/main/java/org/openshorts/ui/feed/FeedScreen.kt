@@ -71,6 +71,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.openshorts.R
 import org.openshorts.data.TrendCategory
+import org.openshorts.web.BROWSER_HOME
 import org.openshorts.data.peertube.Video
 
 /** Full-screen vertical video feed: swipe to switch videos, tap to pause, double-tap to like. */
@@ -80,6 +81,8 @@ fun FeedScreen(
     onMessageCreator: (Video) -> Unit,
     /** Height of the (transparent) navigation bar drawn over the video. */
     bottomInset: Dp = 0.dp,
+    /** Opens the in-app (ad-blocking) browser at a URL. */
+    onOpenBrowser: (String) -> Unit = {},
     viewModel: FeedViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -144,8 +147,10 @@ fun FeedScreen(
             state.videos.isEmpty() && state.content == FeedContent.TikTok && state.endReached ->
                 FeedMessage(
                     text = stringResource(R.string.tiktok_empty),
-                    actionLabel = stringResource(R.string.tiktok_paste),
-                    onAction = { pasteOpen = true },
+                    actionLabel = stringResource(R.string.tiktok_open_browser),
+                    onAction = { onOpenBrowser(BROWSER_HOME) },
+                    secondaryLabel = stringResource(R.string.tiktok_paste),
+                    onSecondary = { pasteOpen = true },
                 )
 
             state.videos.isEmpty() && state.error != null ->
@@ -200,6 +205,7 @@ fun FeedScreen(
                 youTubeEnabled = youTubeEnabled,
                 tikTokEnabled = tikTokEnabled,
                 onPasteTikTok = { pasteOpen = true },
+                onOpenBrowser = { onOpenBrowser(BROWSER_HOME) },
                 onSelectPlatform = { platform ->
                     if (platform == viewModel.platform) viewModel.refresh() else viewModel.selectPlatform(platform)
                 },
@@ -367,6 +373,7 @@ private fun FeedHeader(
     youTubeEnabled: Boolean,
     tikTokEnabled: Boolean,
     onPasteTikTok: () -> Unit,
+    onOpenBrowser: () -> Unit,
     onSelectPlatform: (FeedPlatform) -> Unit,
     onSelectTab: (FeedTab) -> Unit,
     onSelectYouTubeCategory: (TrendCategory?) -> Unit,
@@ -413,6 +420,7 @@ private fun FeedHeader(
                     } else if (content is FeedContent.TikTok) {
                         TabLabel(text = stringResource(R.string.tiktok_tab_shared), selected = true, onClick = {})
                         TabLabel(text = "+ " + stringResource(R.string.tiktok_paste), selected = false, onClick = onPasteTikTok)
+                        TabLabel(text = "🌐 " + stringResource(R.string.browser_title), selected = false, onClick = onOpenBrowser)
                     } else if (content is FeedContent.Tab) {
                         FeedTab.entries.filter { loggedIn || !it.requiresLogin }.forEach { tab ->
                             TabLabel(

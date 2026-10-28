@@ -246,4 +246,17 @@
     <string name="youtube_direct_summary">Wenn alle Piped-/Invidious-Instanzen ausfallen, Shorts von m.youtube.com lesen. Google sieht dann deine IP-Adresse. Videos mit geschützten Streams werden übersprungen.</string>
     <string name="youtube_load_direct">Direkt von YouTube laden</string>
     <string name="video_skipped">Video nicht verfügbar – übersprungen</string>
+    <!-- In-app browser -->
+    <string name="browser_title">Browser</string>
+    <string name="browser_address_hint">Auf TikTok suchen oder Adresse eingeben</string>
+    <string name="browser_close">Browser schließen</string>
+    <string name="browser_back">Zurück</string>
+    <string name="browser_forward">Vor</string>
+    <string name="browser_reload">Neu laden</string>
+    <string name="browser_stop">Stopp</string>
+    <string name="browser_home">TikTok-Startseite</string>
+    <string name="browser_add_to_feed">Video zum TikTok-Feed hinzufügen</string>
+    <string name="browser_open_external">Im externen Browser öffnen</string>
+    <string name="browser_blocked">%1$d Werbung, Tracker und Banner blockiert</string>
+    <string name="tiktok_open_browser">TikTok durchsuchen</string>
 </resources>

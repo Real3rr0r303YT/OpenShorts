@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **In-app browser** (`BrowserScreen`) on top of `AdBlockWebView`: address & search bar (URLs, `@profile`, or a
+  TikTok search for any words), back/forward, reload/stop, home, pull-to-refresh (aware of TikTok's inner scroll
+  containers), blocked-request counter, "add this video to the TikTok feed" and "open externally"
+- App links (`intent://`, `tiktok://`, `market://`) stay in the in-app browser; HTTP is upgraded to HTTPS;
+  camera/microphone permission requests are denied
+- Open it from the TikTok feed ("🌐 Browser" / "Browse TikTok")
+
 ## [1.6.1]
 
 ### Added

@@ -58,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.openshorts.data.AppSettings
 import org.openshorts.ui.account.AccountViewModel
 import org.openshorts.ui.account.LoginScreen
+import org.openshorts.ui.browser.BrowserScreen
 import org.openshorts.ui.chat.ChatScreen
 import org.openshorts.ui.chat.ChatViewModel
 import org.openshorts.ui.chat.InboxScreen
@@ -69,6 +70,7 @@ import org.openshorts.ui.profile.ProfileScreen
 import org.openshorts.ui.settings.SettingsScreen
 import org.openshorts.ui.theme.OpenShortsTheme
 import org.openshorts.ui.upload.UploadScreen
+import org.openshorts.web.BROWSER_HOME
 import androidx.compose.ui.graphics.Color as ComposeColor
 
 class MainActivity : ComponentActivity() {
@@ -124,7 +126,7 @@ private enum class Tab(val icon: ImageVector, val label: Int) {
 }
 
 /** Full-screen pages shown on top of the tabs. */
-private enum class Page { EDIT_PROFILE, LOGIN, UPLOAD }
+private enum class Page { EDIT_PROFILE, LOGIN, UPLOAD, BROWSER }
 
 @Composable
 private fun OpenShortsRoot(
@@ -135,6 +137,7 @@ private fun OpenShortsRoot(
     var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
     var page by rememberSaveable { mutableStateOf<Page?>(null) }
     var openChatId by rememberSaveable { mutableStateOf<String?>(null) }
+    var browserUrl by rememberSaveable { mutableStateOf(BROWSER_HOME) }
     val pageOpen = page != null
     val stateHolder = rememberSaveableStateHolder()
     val dark = settings.isDark(isSystemInDarkTheme())
@@ -182,6 +185,13 @@ private fun OpenShortsRoot(
                 UploadScreen(onClose = { page = null })
             }
 
+            // The browser handles Back itself (page history first, then close).
+            page == Page.BROWSER -> BrowserScreen(
+                startUrl = browserUrl,
+                onClose = { page = null },
+                onAddTikTok = { url -> feedViewModel.addTikTokLink(url) },
+            )
+
             openChatId != null -> {
                 BackHandler { openChatId = null }
                 ChatScreen(conversationId = openChatId!!, onBack = { openChatId = null }, viewModel = chatViewModel)
@@ -210,6 +220,10 @@ private fun OpenShortsRoot(
                                     }
                                 },
                                 bottomInset = barHeight,
+                                onOpenBrowser = { url ->
+                                    browserUrl = url
+                                    page = Page.BROWSER
+                                },
                                 viewModel = feedViewModel,
                             )
                             Tab.INBOX -> InboxScreen(

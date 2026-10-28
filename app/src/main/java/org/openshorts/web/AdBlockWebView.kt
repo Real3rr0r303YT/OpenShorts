@@ -39,6 +39,9 @@ open class AdBlockWebView(
     var blockedRequests: Int = 0
         internal set
 
+    /** Called on the main thread whenever a request was blocked (with the new page total). */
+    var onBlockedRequest: ((Int) -> Unit)? = null
+
     init {
         setLayerType(View.LAYER_TYPE_HARDWARE, null)
         setBackgroundColor(Color.BLACK)
@@ -64,8 +67,14 @@ open class AdBlockWebView(
     }
 
     override fun loadUrl(url: String) {
-        blockedRequests = 0
+        resetBlockedCount()
         super.loadUrl(url)
+    }
+
+    /** Starts counting blocked requests from zero (new page). */
+    fun resetBlockedCount() {
+        blockedRequests = 0
+        onBlockedRequest?.invoke(0)
     }
 
     companion object {
@@ -98,7 +107,12 @@ open class AdBlockWebViewClient : WebViewClient() {
     override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
         val url = request?.url?.toString() ?: return null
         if (!AdBlocker.shouldBlock(url)) return null
-        (view as? AdBlockWebView)?.let { it.post { it.blockedRequests++ } }
+        (view as? AdBlockWebView)?.let { web ->
+            web.post {
+                web.blockedRequests++
+                web.onBlockedRequest?.invoke(web.blockedRequests)
+            }
+        }
         // An empty "204 No Content" instead of the ad/tracker/consent script.
         return WebResourceResponse("text/plain", "utf-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)))
     }
