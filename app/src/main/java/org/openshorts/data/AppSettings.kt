@@ -43,12 +43,12 @@ data class AppSettings(
     /** The user's own Piped or Invidious instance (tried first), e.g. `https://pipedapi.example.org`. */
     val youTubeCustomInstance: String? = null,
     val youTubeCustomType: YouTubeInstanceType = YouTubeInstanceType.PIPED,
-)
-
-enum class YouTubeInstanceType { PIPED, INVIDIOUS } {
+) {
     fun isDark(systemDark: Boolean): Boolean = when (themeMode) {
         ThemeMode.SYSTEM -> systemDark
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
 }
+
+enum class YouTubeInstanceType { PIPED, INVIDIOUS }
