@@ -102,11 +102,9 @@ unit tests → lint → debug & unsigned release APK. The APKs and a `SHA256SUMS
 to each workflow run as artifacts, and the checksums are printed in the run summary, so anyone can
 verify that a downloaded APK was built from the public source.
 
-Pushing a version tag publishes a public GitHub release with the APK automatically:
-
-```bash
-git tag v0.2.0 && git push origin v0.2.0
-```
+Pushing a version tag (`git tag v0.2.0 && git push origin v0.2.0`) — or pushing a commit whose
+message contains `[release]` — publishes a public GitHub release with the APK automatically.
+Without a tag, the version is taken from `versionName` in `app/build.gradle.kts`.
 
 ## Project structure
 
