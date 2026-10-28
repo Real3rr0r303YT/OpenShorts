@@ -15,8 +15,8 @@ android {
         applicationId = "org.openshorts"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.6.1"
+        versionCode = 9
+        versionName = "1.7.0"
 
         buildConfigField("String", "DONATION_URL", "\"https://buymeacoffee.com/3rr0r303yt\"")
         buildConfigField("String", "SOURCE_URL", "\"https://github.com/Real3rr0r303YT/OpenShorts\"")

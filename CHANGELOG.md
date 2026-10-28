@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.7.0]
 
 ### Added
 - **In-app browser** (`BrowserScreen`) on top of `AdBlockWebView`: address & search bar (URLs, `@profile`, or a
