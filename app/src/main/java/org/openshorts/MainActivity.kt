@@ -13,6 +13,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -153,8 +158,15 @@ private fun OpenShortsRoot(
                 ChatScreen(conversationId = openChatId!!, onBack = { openChatId = null }, viewModel = chatViewModel)
             }
 
-            else -> Column(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f).fillMaxWidth()) {
+            else -> Box(Modifier.fillMaxSize()) {
+                // The navigation bar floats transparently over the video feed (full-screen feel);
+                // other tabs are laid out above it.
+                val barHeight = NAV_BAR_HEIGHT + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(bottom = if (tab == Tab.HOME) 0.dp else barHeight),
+                ) {
                     stateHolder.SaveableStateProvider(tab.name) {
                         when (tab) {
                             Tab.HOME -> FeedScreen(
@@ -168,6 +180,7 @@ private fun OpenShortsRoot(
                                         )
                                     }
                                 },
+                                bottomInset = barHeight,
                                 viewModel = feedViewModel,
                             )
                             Tab.INBOX -> InboxScreen(
@@ -201,6 +214,7 @@ private fun OpenShortsRoot(
                     selected = tab,
                     onSelect = { if (it == Tab.UPLOAD) openUpload() else tab = it },
                     overVideo = tab == Tab.HOME,
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
         }
@@ -227,11 +241,15 @@ private fun OpenShortsRoot(
 }
 
 @Composable
-private fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, overVideo: Boolean) {
-    // On the video feed the bar is black like in other short-video apps.
-    val container = if (overVideo) ComposeColor.Black else MaterialTheme.colorScheme.surfaceContainer
+private fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, overVideo: Boolean, modifier: Modifier = Modifier) {
+    // On the video feed the bar is transparent, so the video really runs edge to edge.
+    val container = if (overVideo) ComposeColor.Transparent else MaterialTheme.colorScheme.surfaceContainer
     val content = if (overVideo) ComposeColor.White else MaterialTheme.colorScheme.onSurface
-    NavigationBar(containerColor = container) {
+    NavigationBar(
+        modifier = modifier.height(NAV_BAR_HEIGHT + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+        containerColor = container,
+        tonalElevation = 0.dp,
+    ) {
         Tab.entries.forEach { item ->
             if (item == Tab.UPLOAD) {
                 UploadNavItem(onClick = { onSelect(item) }, overVideo = overVideo)
@@ -242,7 +260,7 @@ private fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, overVideo: Boolean
                 label = { Text(stringResource(item.label)) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = if (overVideo) ComposeColor.Black else MaterialTheme.colorScheme.onSecondaryContainer,
-                    indicatorColor = if (overVideo) ComposeColor.White else MaterialTheme.colorScheme.secondaryContainer,
+                    indicatorColor = if (overVideo) ComposeColor.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.secondaryContainer,
                     selectedTextColor = content,
                     unselectedIconColor = content.copy(alpha = 0.7f),
                     unselectedTextColor = content.copy(alpha = 0.7f),
@@ -277,3 +295,6 @@ private fun RowScope.UploadNavItem(onClick: () -> Unit, overVideo: Boolean) {
         }
     }
 }
+
+/** Height of the bottom navigation bar without the system navigation inset (compact, TikTok-like). */
+private val NAV_BAR_HEIGHT = 72.dp

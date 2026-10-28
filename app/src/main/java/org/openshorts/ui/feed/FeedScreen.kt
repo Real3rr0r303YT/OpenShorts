@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerSnapDistance
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,13 +52,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -67,13 +67,14 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import org.openshorts.R
 import org.openshorts.data.SearchQuery
 import org.openshorts.data.peertube.Video
-import kotlin.math.absoluteValue
 
 /** Full-screen vertical video feed: swipe to switch videos, tap to pause, double-tap to like. */
 @Composable
 fun FeedScreen(
     onOpenSettings: () -> Unit,
     onMessageCreator: (Video) -> Unit,
+    /** Height of the (transparent) navigation bar drawn over the video. */
+    bottomInset: Dp = 0.dp,
     viewModel: FeedViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -91,6 +92,8 @@ fun FeedScreen(
     var commentsFor by remember { mutableStateOf<Video?>(null) }
     var creatorFor by remember { mutableStateOf<Video?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
+    // "Clear display": long-press hides every overlay for a pure full-screen video.
+    var cleanMode by rememberSaveable { mutableStateOf(false) }
 
     // Pause when the app goes to the background or the feed leaves the screen.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -142,6 +145,9 @@ fun FeedScreen(
             else -> key(state.generation) {
                 VideoPager(
                     state = state,
+                    bottomInset = bottomInset,
+                    cleanMode = cleanMode,
+                    onToggleCleanMode = { cleanMode = !cleanMode },
                     likedIds = likedIds,
                     savedIds = savedIds,
                     followed = followed,
@@ -152,25 +158,31 @@ fun FeedScreen(
             }
         }
 
-        FeedHeader(
-            content = state.content,
-            loggedIn = loggedIn,
-            onSelectTab = { tab ->
-                if (state.content == FeedContent.Tab(tab)) viewModel.refresh() else viewModel.selectTab(tab)
-            },
-            onOpenSearch = { searchOpen = true },
-            onClearSearch = viewModel::clearSearch,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .statusBarsPadding(),
-        )
+        AnimatedVisibility(
+            visible = !cleanMode,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            FeedHeader(
+                content = state.content,
+                loggedIn = loggedIn,
+                onSelectTab = { tab ->
+                    if (state.content == FeedContent.Tab(tab)) viewModel.refresh() else viewModel.selectTab(tab)
+                },
+                onOpenSearch = { searchOpen = true },
+                onClearSearch = viewModel::clearSearch,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
+            )
+        }
 
         SnackbarHost(
             hostState = snackbarHost,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 80.dp),
+                .padding(bottom = bottomInset + 16.dp),
         )
 
         AnimatedVisibility(visible = searchOpen, enter = fadeIn(), exit = fadeOut()) {
@@ -213,6 +225,9 @@ fun FeedScreen(
 @Composable
 private fun VideoPager(
     state: FeedUiState,
+    bottomInset: Dp,
+    cleanMode: Boolean,
+    onToggleCleanMode: () -> Unit,
     likedIds: Set<String>,
     savedIds: Set<String>,
     followed: Set<String>,
@@ -238,21 +253,28 @@ private fun VideoPager(
             modifier = Modifier.fillMaxSize(),
             beyondViewportPageCount = 1,
             key = { index -> state.videos[index].uuid },
-            // Soft, non-bouncy snap like in other short-video apps.
+            // TikTok-style snap: exactly one video per swipe, fast and without bounce;
+            // a short flick (20 % of the screen) is enough.
             flingBehavior = PagerDefaults.flingBehavior(
                 state = pagerState,
+                pagerSnapDistance = PagerSnapDistance.atMost(1),
                 snapAnimationSpec = spring(
                     dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
+                    stiffness = Spring.StiffnessMedium,
                 ),
+                snapPositionalThreshold = 0.2f,
             ),
         ) { index ->
             val video = state.videos[index]
             val isActive = video.uuid == state.playingUuid
             VideoPage(
                 video = video,
-                player = viewModel.player,
+                player = viewModel.playerFor(video.uuid, state),
+                progressPlayer = viewModel.currentPlayer(state),
                 isActive = isActive,
+                bottomInset = bottomInset,
+                cleanMode = cleanMode,
+                onLongPress = onToggleCleanMode,
                 isLiked = video.uuid in likedIds,
                 isSaved = video.uuid in savedIds,
                 isFollowing = video.toCreator()?.handle in followed,
@@ -266,15 +288,6 @@ private fun VideoPager(
                 onFollow = { viewModel.toggleFollow(video) },
                 onOpenComments = { onOpenComments(video) },
                 onOpenCreator = { onOpenCreator(video) },
-                modifier = Modifier.graphicsLayer {
-                    // The leaving page shrinks and fades slightly while swiping.
-                    val offset = ((pagerState.currentPage - index) + pagerState.currentPageOffsetFraction)
-                        .absoluteValue.coerceIn(0f, 1f)
-                    val scale = lerp(1f, 0.88f, offset)
-                    scaleX = scale
-                    scaleY = scale
-                    alpha = lerp(1f, 0.4f, offset)
-                },
             )
         }
     }
@@ -371,6 +384,7 @@ private fun TabLabel(text: String, selected: Boolean, onClick: () -> Unit) {
 
 private val FeedTab.labelRes: Int
     get() = when (this) {
+        FeedTab.FOR_YOU -> R.string.tab_for_you
         FeedTab.TECH -> R.string.tab_tech
         FeedTab.FOLLOWING -> R.string.tab_following
         FeedTab.TRENDING -> R.string.tab_trending

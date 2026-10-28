@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.3]
+
+### Feed & "For You"
+- New default **For You** tab (PeerTube "hot" ranking) – short clips under 60 seconds, vertical clips first;
+  falls back to clips up to 3 minutes so the feed is never empty
+- Searches like "edits", "cybersecurity", "gaming", "tech", "anime" or "shorts" become category searches for
+  short clips with matching tags; text searches ask the server for clips under 60 s (`durationMax`)
+- Instant swipes: two players take turns, the next clip is buffered (first frame ready) before you swipe
+- TikTok-style snap: one video per swipe, quick flick threshold, no shrink effect; faster start of playback
+- Vertical clips fill the whole screen; the bottom navigation floats transparently over the video
+- Long-press a video for a clean, button-free full-screen view
+- Videos loop endlessly by default
+
+### Look & feel
+- Action rail with glow effects, press-to-shrink touch feedback and haptics
+- Like button with particle burst, bounce and rolling live counter; rotating gradient ring around the creator avatar
+- Text shadows for better readability on bright videos; gradient progress bar
+
+### Search
+- "Trending now" badges when opening the search: Edits, Cybersecurity, Gaming, Tech, Anime, Shorts
+
 ## [1.0.2]
 
 ### Added

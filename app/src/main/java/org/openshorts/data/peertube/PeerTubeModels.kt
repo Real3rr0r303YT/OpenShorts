@@ -21,6 +21,7 @@ data class PeerTubeVideo(
     val likes: Long = 0,
     val comments: Long = 0,
     val isLive: Boolean = false,
+    val aspectRatio: Float? = null,
     val thumbnailPath: String? = null,
     val previewPath: String? = null,
     val account: PeerTubeActor? = null,

@@ -41,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -52,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.openshorts.R
 import org.openshorts.data.SearchQuery
 import org.openshorts.data.TECH_TAGS
+import org.openshorts.data.TrendCategory
 import org.openshorts.data.parseSearchQuery
 import org.openshorts.ui.components.Avatar
 import org.openshorts.ui.components.formatCount
@@ -116,6 +119,21 @@ fun SearchOverlay(
         if (state.loadingCreators) LinearProgressIndicator(Modifier.fillMaxWidth())
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
+            if (state.input.isBlank()) {
+                // Trend badges first, like the "Discover" page of short-video apps.
+                item { SectionTitle(stringResource(R.string.search_trending)) }
+                item {
+                    FlowRow(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        TrendCategory.entries.forEachIndexed { index, category ->
+                            TrendBadge(category = category, rank = index + 1, onClick = { onSearch(SearchQuery.Category(category)) })
+                        }
+                    }
+                }
+            }
             if (state.input.isNotBlank()) {
                 item {
                     SearchRow(
@@ -168,6 +186,36 @@ fun SearchOverlay(
                 )
             }
         }
+    }
+}
+
+/** Gradient badge for a trending category, with its trend rank. */
+@Composable
+private fun TrendBadge(category: TrendCategory, rank: Int, onClick: () -> Unit) {
+    val colors = when (category) {
+        TrendCategory.EDITS -> listOf(Color(0xFFFE2C55), Color(0xFFFF8A00))
+        TrendCategory.CYBERSECURITY -> listOf(Color(0xFF00C853), Color(0xFF00897B))
+        TrendCategory.GAMING -> listOf(Color(0xFF7C4DFF), Color(0xFF2979FF))
+        TrendCategory.TECH -> listOf(Color(0xFF25F4EE), Color(0xFF2962FF))
+        TrendCategory.ANIME -> listOf(Color(0xFFFF4081), Color(0xFFAA00FF))
+        TrendCategory.SHORTS -> listOf(Color(0xFFFFC107), Color(0xFFFE2C55))
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Brush.linearGradient(colors))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text("${category.emoji}  ${category.label}", color = Color.White, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "#$rank",
+            color = Color.White.copy(alpha = 0.8f),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

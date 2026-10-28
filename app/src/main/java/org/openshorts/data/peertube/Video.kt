@@ -27,7 +27,12 @@ data class Video(
     val instanceUrl: String = "",
     /** Numeric id, only valid on [instanceUrl]. */
     val id: Long = 0,
-)
+    /** Width / height as reported by PeerTube ≥ 6.1; null if unknown. */
+    val aspectRatio: Float? = null,
+) {
+    /** Portrait clip (9:16 and similar), the native short-video format. */
+    val isVertical: Boolean get() = aspectRatio?.let { it < 0.9f } ?: false
+}
 
 /** A (top-level) comment, already converted to plain text. */
 data class Comment(

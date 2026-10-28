@@ -41,12 +41,21 @@ class PeerTubeClient(private val userAgent: String) {
         )
     }
 
-    /** Full-text video search (title, description, tags) on the instance. */
-    suspend fun searchVideos(instanceUrl: String, query: String, start: Int, count: Int): List<Video> =
+    /**
+     * Full-text video search (title, description, tags) on the instance.
+     * [maxDurationSeconds] lets the server return only short clips.
+     */
+    suspend fun searchVideos(
+        instanceUrl: String,
+        query: String,
+        start: Int,
+        count: Int,
+        maxDurationSeconds: Int? = null,
+    ): List<Video> =
         fetchVideos(
             instanceUrl,
             "$instanceUrl/api/v1/search/videos?search=${query.urlEncode()}&start=$start&count=$count" +
-                "&sort=-match&nsfw=false",
+                "&sort=-match&nsfw=false" + (maxDurationSeconds?.let { "&durationMax=$it" } ?: ""),
         )
 
     /** Videos of one channel, newest first. [handle] is `name` or `name@host`. */
@@ -137,6 +146,7 @@ internal fun PeerTubeVideo.toVideo(instanceUrl: String): Video {
         channelHandle = channel?.let { it.name + if (it.host.isNotEmpty()) "@${it.host}" else "" },
         instanceUrl = instanceUrl,
         id = id,
+        aspectRatio = aspectRatio,
     )
 }
 

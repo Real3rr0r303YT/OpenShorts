@@ -151,8 +151,8 @@
     <string name="instance">Eigener Server</string>
     <string name="instance_summary">Videos werden anonym ausschließlich von diesem Server geladen.</string>
     <string name="instance_invalid">Bitte eine gültige https://-Adresse eingeben.</string>
-    <string name="shorts_only">Nur kurze Videos</string>
-    <string name="shorts_only_summary">In den Feed-Tabs nur Videos bis 3 Minuten anzeigen</string>
+    <string name="shorts_only">Nur Shorts (unter 60 s)</string>
+    <string name="shorts_only_summary">Kurze Clips bis 60 Sekunden bevorzugen, Hochformat zuerst – auch in der Suche. Gibt es keine, werden Clips bis 3 Minuten gezeigt.</string>
     <string name="loop_videos">Videos wiederholen</string>
     <string name="loop_videos_summary">Video am Ende automatisch neu starten</string>
 
@@ -215,4 +215,6 @@
     <string name="upload_done_hint">Dein Server verarbeitet das Video jetzt. Es kann einige Minuten dauern, bis es abspielbar ist.</string>
     <string name="upload_another">Weiteres Video hochladen</string>
     <string name="upload_target">Upload zu @%1$s</string>
+    <string name="tab_for_you">Für dich</string>
+    <string name="search_trending">Gerade im Trend</string>
 </resources>

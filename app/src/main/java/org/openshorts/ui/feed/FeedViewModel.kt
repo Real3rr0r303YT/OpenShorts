@@ -10,6 +10,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import kotlinx.coroutines.CancellationException
@@ -17,9 +18,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -28,12 +29,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.openshorts.OpenShortsApp
+import org.openshorts.data.SHORT_CLIP_MAX_SECONDS
 import org.openshorts.data.SearchQuery
 import org.openshorts.data.TECH_TAGS
 import org.openshorts.data.peertube.Creator
 import org.openshorts.data.peertube.Video
+import org.openshorts.data.rankShorts
 
-/** The tabs on top of the feed. [TECH] (cybersecurity, Linux, programming…) is the default. */
+/** The tabs on top of the feed. [FOR_YOU] (hot short clips) is the default. */
 enum class FeedTab(
     val sort: String,
     val localOnly: Boolean,
@@ -41,7 +44,10 @@ enum class FeedTab(
     /** Only shown when logged in with a PeerTube account. */
     val requiresLogin: Boolean = false,
 ) {
+    /** "For You": PeerTube's "hot" ranking, short vertical clips first. */
+    FOR_YOU("-hot", false),
     TECH("-publishedAt", false, TECH_TAGS),
+
     /** Videos of channels the user follows on their PeerTube account. */
     FOLLOWING("-publishedAt", false, requiresLogin = true),
     TRENDING("-trending", false),
@@ -62,14 +68,18 @@ sealed interface FeedContent {
 data class FeedUiState(
     /** Incremented whenever the feed source changes, so the pager can reset. */
     val generation: Int = 0,
-    val content: FeedContent = FeedContent.Tab(FeedTab.TECH),
+    val content: FeedContent = FeedContent.Tab(FeedTab.FOR_YOU),
     /** Page the pager should start on (non-zero for collections). */
     val startPage: Int = 0,
     val videos: List<Video> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val endReached: Boolean = false,
+    /** Video on screen and the pool player that plays it. */
     val playingUuid: String? = null,
+    val activePlayer: Int = 0,
+    /** Next video, already buffered (first frame ready) on the other pool player. */
+    val preloadedUuid: String? = null,
     val isBuffering: Boolean = false,
     val userPaused: Boolean = false,
     val playbackFailed: Boolean = false,
@@ -94,8 +104,11 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     /** Emits when an action could not be sent to the PeerTube server (message may be null). */
     val syncErrors: SharedFlow<String?> = _syncErrors.asSharedFlow()
 
-    /** One shared player for the whole feed; only the visible page renders it. */
-    val player: ExoPlayer = buildPlayer(application)
+    /**
+     * Two players take turns: one plays the current video, the other already buffers the next one.
+     * When the user swipes, the buffered player simply starts – no black frame, no loading spinner.
+     */
+    private val players: List<ExoPlayer> = List(2) { buildPlayer(application) }
 
     private val _state = MutableStateFlow(FeedUiState())
     val state: StateFlow<FeedUiState> = _state.asStateFlow()
@@ -118,7 +131,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     /** The instance currently shown, used for the comments sheet. */
     val instanceUrl: String? get() = source?.instanceUrl
 
-    private val selectedContent = MutableStateFlow<FeedContent>(FeedContent.Tab(FeedTab.TECH))
+    private val selectedContent = MutableStateFlow<FeedContent>(FeedContent.Tab(FeedTab.FOR_YOU))
     private var source: FeedSource? = null
     private var nextStart = 0
     private var loadJob: Job? = null
@@ -126,16 +139,31 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private var preloadJob: Job? = null
     private val streamCache = HashMap<String, String>()
 
-    init {
-        player.addListener(object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                _state.update { it.copy(isBuffering = playbackState == Player.STATE_BUFFERING) }
-            }
+    /** Category searches fall back to a short-clip text search when the tags find nothing. */
+    private var categoryFallback = false
+    private var emptyLoads = 0
 
-            override fun onPlayerError(error: PlaybackException) {
-                _state.update { it.copy(playbackFailed = true, isBuffering = false) }
-            }
-        })
+    private val activePlayer: ExoPlayer get() = players[_state.value.activePlayer]
+    private val standbyIndex: Int get() = 1 - _state.value.activePlayer
+
+    init {
+        players.forEachIndexed { index, player ->
+            player.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (index == _state.value.activePlayer) {
+                        _state.update { it.copy(isBuffering = playbackState == Player.STATE_BUFFERING) }
+                    }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    if (index == _state.value.activePlayer) {
+                        _state.update { it.copy(playbackFailed = true, isBuffering = false) }
+                    } else {
+                        _state.update { it.copy(preloadedUuid = null) }
+                    }
+                }
+            })
+        }
 
         viewModelScope.launch {
             combine(app.settingsRepository.settings, selectedContent) { settings, content ->
@@ -149,10 +177,20 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 .map { it.loopVideos }
                 .distinctUntilChanged()
                 .collect { loop ->
-                    player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+                    players.forEach { it.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF }
                 }
         }
     }
+
+    /** The pool player showing [uuid] (playing or buffered), or null. */
+    fun playerFor(uuid: String, state: FeedUiState): Player? = when (uuid) {
+        state.playingUuid -> players[state.activePlayer]
+        state.preloadedUuid -> players[1 - state.activePlayer]
+        else -> null
+    }
+
+    /** The player of the video on screen, for the progress bar. */
+    fun currentPlayer(state: FeedUiState): Player = players[state.activePlayer]
 
     fun selectTab(tab: FeedTab) {
         selectedContent.value = FeedContent.Tab(tab)
@@ -170,7 +208,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Leaves search / collection mode and returns to the default tab. */
     fun clearSearch() {
-        selectedContent.value = FeedContent.Tab(FeedTab.TECH)
+        selectedContent.value = FeedContent.Tab(FeedTab.FOR_YOU)
     }
 
     /** Pull-to-refresh / tapping the active tab again. */
@@ -181,12 +219,16 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     private fun reset(newSource: FeedSource) {
         source = newSource
         nextStart = 0
+        categoryFallback = false
+        emptyLoads = 0
         streamCache.clear()
         loadJob?.cancel()
         playJob?.cancel()
         preloadJob?.cancel()
-        player.stop()
-        player.clearMediaItems()
+        players.forEach {
+            it.stop()
+            it.clearMediaItems()
+        }
         val content = newSource.content
         if (content is FeedContent.Collection) {
             _state.update {
@@ -217,16 +259,21 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 val batch = mutableListOf<Video>()
                 var end = false
                 var pages = 0
-                // With "shorts only" a single page may contain few matches, so fetch a few.
+                // A page may contain few short clips, so fetch a few pages per load.
                 while (batch.size < MIN_BATCH && !end && pages < MAX_PAGES_PER_LOAD) {
                     val page = fetchPage(src, nextStart)
                     nextStart += PAGE_SIZE
                     pages++
                     end = page.size < PAGE_SIZE
-                    // Search results are shown unfiltered: the user asked for them explicitly.
-                    val applyShortsFilter = src.shortsOnly && src.content is FeedContent.Tab
-                    batch += page.filter { video ->
-                        !video.isLive && (!applyShortsFilter || video.durationSeconds in 1..SHORT_MAX_SECONDS)
+                    batch += rankShorts(page, shortsOnly = src.shortsOnly)
+                    val content = src.content
+                    if (end && batch.isEmpty() && content is FeedContent.Search &&
+                        content.query is SearchQuery.Category && !categoryFallback
+                    ) {
+                        // No tagged clips: search the category name as text instead.
+                        categoryFallback = true
+                        nextStart = 0
+                        end = false
                     }
                 }
                 _state.update {
@@ -236,6 +283,11 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                         endReached = end,
                     )
                 }
+                // Keep loading (a few times) until something can be shown, otherwise the spinner would never end.
+                emptyLoads = if (_state.value.videos.isEmpty()) emptyLoads + 1 else 0
+                if (_state.value.videos.isEmpty() && !end) {
+                    if (emptyLoads < MAX_EMPTY_LOADS) loadMore() else _state.update { it.copy(endReached = true) }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -244,8 +296,10 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun fetchPage(src: FeedSource, start: Int): List<Video> =
-        when (val content = src.content) {
+    private suspend fun fetchPage(src: FeedSource, start: Int): List<Video> {
+        // Searches ask the server for short clips directly when "shorts only" is on.
+        val maxDuration = if (src.shortsOnly) SHORT_CLIP_MAX_SECONDS else null
+        return when (val content = src.content) {
             is FeedContent.Tab -> if (content.tab == FeedTab.FOLLOWING) {
                 accounts.subscriptionVideos(start, PAGE_SIZE)
             } else {
@@ -255,49 +309,88 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             is FeedContent.Search -> when (val query = content.query) {
-                is SearchQuery.Text -> client.searchVideos(src.instanceUrl, query.text, start, PAGE_SIZE)
+                is SearchQuery.Text -> client.searchVideos(src.instanceUrl, query.text, start, PAGE_SIZE, maxDuration)
                 is SearchQuery.Tag -> client.videos(src.instanceUrl, start, PAGE_SIZE, tagsOneOf = listOf(query.tag))
+                is SearchQuery.Category -> if (categoryFallback) {
+                    client.searchVideos(src.instanceUrl, query.category.label, start, PAGE_SIZE, maxDuration)
+                } else {
+                    client.videos(src.instanceUrl, start, PAGE_SIZE, sort = "-publishedAt", tagsOneOf = query.category.tags)
+                }
                 is SearchQuery.Channel -> client.channelVideos(src.instanceUrl, query.handle, start, PAGE_SIZE)
             }
             is FeedContent.Collection -> emptyList()
         }
+    }
 
     /** Called when the pager settles on [index]. */
     fun onPageSelected(index: Int) {
         val src = source ?: return
-        val videos = _state.value.videos
+        val state = _state.value
+        val videos = state.videos
         val video = videos.getOrNull(index) ?: return
         if (index >= videos.size - PRELOAD_THRESHOLD) loadMore()
 
-        if (_state.value.playingUuid == video.uuid && player.mediaItemCount > 0) {
-            if (!_state.value.userPaused) player.play()
+        if (state.playingUuid == video.uuid && activePlayer.mediaItemCount > 0) {
+            if (!state.userPaused) activePlayer.play()
+            preloadNext(src, index)
             return
         }
 
         playJob?.cancel()
-        player.stop()
-        player.clearMediaItems()
-        _state.update { it.copy(playingUuid = video.uuid, userPaused = false, playbackFailed = false) }
+        preloadJob?.cancel()
+        val previous = activePlayer
 
+        if (state.preloadedUuid == video.uuid) {
+            // Swap: the standby player already has this video buffered – start instantly.
+            val next = standbyIndex
+            previous.pause()
+            _state.update {
+                it.copy(
+                    playingUuid = video.uuid,
+                    activePlayer = next,
+                    preloadedUuid = null,
+                    userPaused = false,
+                    playbackFailed = false,
+                    isBuffering = players[next].playbackState == Player.STATE_BUFFERING,
+                )
+            }
+            players[next].seekTo(0)
+            players[next].playWhenReady = true
+            preloadNext(src, index)
+            return
+        }
+
+        previous.stop()
+        previous.clearMediaItems()
+        _state.update {
+            it.copy(playingUuid = video.uuid, preloadedUuid = null, userPaused = false, playbackFailed = false)
+        }
         playJob = viewModelScope.launch {
             val url = resolveStream(video.instanceUrl.ifEmpty { src.instanceUrl }, video.uuid)
             if (url == null) {
                 _state.update { it.copy(playbackFailed = true) }
                 return@launch
             }
-            player.setMediaItem(MediaItem.fromUri(url))
-            player.prepare()
-            player.playWhenReady = true
+            activePlayer.setMediaItem(MediaItem.fromUri(url))
+            activePlayer.prepare()
+            activePlayer.playWhenReady = true
             preloadNext(src, index)
         }
     }
 
-    /** Resolves the next video's stream URL in advance so swiping feels instant. */
+    /** Buffers the next video on the standby player so the next swipe starts instantly. */
     private fun preloadNext(src: FeedSource, index: Int) {
         val next = _state.value.videos.getOrNull(index + 1) ?: return
-        if (next.uuid in streamCache) return
+        if (_state.value.preloadedUuid == next.uuid) return
         preloadJob?.cancel()
-        preloadJob = viewModelScope.launch { resolveStream(next.instanceUrl.ifEmpty { src.instanceUrl }, next.uuid) }
+        preloadJob = viewModelScope.launch {
+            val url = resolveStream(next.instanceUrl.ifEmpty { src.instanceUrl }, next.uuid) ?: return@launch
+            val standby = players[standbyIndex]
+            standby.playWhenReady = false
+            standby.setMediaItem(MediaItem.fromUri(url))
+            standby.prepare()
+            _state.update { it.copy(preloadedUuid = next.uuid) }
+        }
     }
 
     private suspend fun resolveStream(instanceUrl: String, uuid: String): String? =
@@ -310,7 +403,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     fun togglePlayPause() {
         val paused = !_state.value.userPaused
         _state.update { it.copy(userPaused = paused) }
-        if (paused) player.pause() else player.play()
+        if (paused) activePlayer.pause() else activePlayer.play()
     }
 
     fun toggleLike(video: Video) {
@@ -356,14 +449,14 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Lifecycle pause (app in background, other tab opened) – keeps the user's choice. */
-    fun pausePlayback() = player.pause()
+    fun pausePlayback() = activePlayer.pause()
 
     fun resumePlayback() {
-        if (!_state.value.userPaused && player.mediaItemCount > 0) player.play()
+        if (!_state.value.userPaused && activePlayer.mediaItemCount > 0) activePlayer.play()
     }
 
     override fun onCleared() {
-        player.release()
+        players.forEach { it.release() }
     }
 
     private companion object {
@@ -371,7 +464,7 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         const val MIN_BATCH = 8
         const val MAX_PAGES_PER_LOAD = 4
         const val PRELOAD_THRESHOLD = 3
-        const val SHORT_MAX_SECONDS = 180
+        const val MAX_EMPTY_LOADS = 3
     }
 }
 
@@ -388,7 +481,17 @@ private fun buildPlayer(application: Application): ExoPlayer {
         .setUserAgent(userAgent)
         .setAllowCrossProtocolRedirects(false)
     val dataSourceFactory = DefaultDataSource.Factory(application, httpFactory)
+    // Short clips: start playing after a small buffer instead of the default 2.5 s.
+    val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            /* minBufferMs = */ 5_000,
+            /* maxBufferMs = */ 30_000,
+            /* bufferForPlaybackMs = */ 700,
+            /* bufferForPlaybackAfterRebufferMs = */ 1_500,
+        )
+        .build()
     return ExoPlayer.Builder(application)
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+        .setLoadControl(loadControl)
         .build()
 }

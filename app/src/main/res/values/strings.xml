@@ -153,8 +153,8 @@
     <string name="instance">Custom server</string>
     <string name="instance_summary">Videos are loaded anonymously from this server only.</string>
     <string name="instance_invalid">Please enter a valid https:// address.</string>
-    <string name="shorts_only">Short videos only</string>
-    <string name="shorts_only_summary">In the feed tabs, only show videos up to 3 minutes long</string>
+    <string name="shorts_only">Shorts only (under 60 s)</string>
+    <string name="shorts_only_summary">Prefer short clips up to 60 seconds, vertical clips first – also in search. Falls back to clips up to 3 minutes when there are none.</string>
     <string name="loop_videos">Loop videos</string>
     <string name="loop_videos_summary">Restart a video automatically when it ends</string>
 
@@ -217,4 +217,6 @@
     <string name="upload_done_hint">Your server is now processing the video. It can take a few minutes until it can be played.</string>
     <string name="upload_another">Upload another video</string>
     <string name="upload_target">Uploading to @%1$s</string>
+    <string name="tab_for_you">For You</string>
+    <string name="search_trending">Trending now</string>
 </resources>

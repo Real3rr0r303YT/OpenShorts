@@ -31,14 +31,16 @@ Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums s
 
 ## Features
 
-- 📱 **TikTok-style vertical feed** – smooth swipe animations, tap to pause, **double-tap to like** with a flying heart,
-  playback progress bar, pull to refresh
+- 📱 **TikTok-style vertical feed** – one-video-per-swipe snap, the next clip is pre-buffered for instant swipes,
+  vertical clips fill the screen, endless loop, tap to pause, **double-tap to like**, long-press for a clean view
+- ⚡ **For You** – short clips under 60 s with vertical clips first (falls back to ≤ 3 min), plus category searches
+  for Edits, Cybersecurity, Gaming, Tech, Anime and Shorts with trend badges in the search
 - 🛡️ **Tech & cybersecurity first** – the default **Tech** tab shows videos tagged
   `cybersecurity`, `hacking`, `linux`, `infosec`, `programming` and `tech`; tech-focused PeerTube servers are offered
   as quick picks. Tabs for Trending, Latest and Local are one tap away.
 - 🔍 **Search** – free text, `#tags` and `@creator@server`, live creator suggestions, tech topic shortcuts
-- ❤️ **Action rail** on every video – creator avatar with follow button, like button with animated live counter,
-  comments, save/bookmark, share and a spinning creator disc
+- ❤️ **Action rail** on every video – glowing buttons with touch feedback and haptics: creator avatar with animated
+  ring and follow button, like with particle burst and live counter, comments, save, share, spinning creator disc
 - 💬 **Comments** – read a video's PeerTube comments in a bottom sheet
 - 👤 **Profile** – avatar, custom banner (image or color), bio, supporter badge, your own tip link, stats
   (following / followers / likes) and tabs for posted, liked and saved videos and followed creators
