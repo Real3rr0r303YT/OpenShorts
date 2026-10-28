@@ -1,32 +1,59 @@
 package org.openshorts.ui.theme
 
+import android.graphics.Typeface
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import org.openshorts.R
 import org.openshorts.data.FontChoice
+import java.io.File
+
+private val Poppins = FontFamily(
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_semibold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+)
+
+private val AtkinsonHyperlegible = FontFamily(
+    Font(R.font.atkinson_hyperlegible_regular, FontWeight.Normal),
+    Font(R.font.atkinson_hyperlegible_bold, FontWeight.Bold),
+)
+
+private val SpaceMono = FontFamily(
+    Font(R.font.space_mono_regular, FontWeight.Normal),
+    Font(R.font.space_mono_bold, FontWeight.Bold),
+)
+
+private val Pacifico = FontFamily(Font(R.font.pacifico_regular, FontWeight.Normal))
 
 /**
- * Maps a [FontChoice] to a [FontFamily].
+ * Resolves a [FontChoice] to a [FontFamily].
  *
- * To bundle a custom font, put the .ttf/.otf files into `app/src/main/res/font/`,
- * add a [FontChoice] entry and map it here, e.g.
- * `FontFamily(Font(R.font.inter_regular), Font(R.font.inter_bold, FontWeight.Bold))`.
+ * Bundled fonts live in `res/font/` (all SIL Open Font License, see `licenses/fonts/`).
+ * To add one, drop the .ttf files there, add a [FontChoice] entry and map it below.
+ * [FontChoice.IMPORTED] loads a font file the user picked in the settings.
  * Downloadable (Google) fonts are intentionally not used: they contact Google services.
  */
-val FontChoice.fontFamily: FontFamily
-    get() = when (this) {
-        FontChoice.SYSTEM -> FontFamily.Default
-        FontChoice.SANS_SERIF -> FontFamily.SansSerif
-        FontChoice.SERIF -> FontFamily.Serif
-        FontChoice.MONOSPACE -> FontFamily.Monospace
-        FontChoice.CURSIVE -> FontFamily.Cursive
-    }
+fun fontFamilyFor(font: FontChoice, importedFontPath: String? = null): FontFamily = when (font) {
+    FontChoice.SYSTEM -> FontFamily.Default
+    FontChoice.POPPINS -> Poppins
+    FontChoice.ATKINSON_HYPERLEGIBLE -> AtkinsonHyperlegible
+    FontChoice.SPACE_MONO -> SpaceMono
+    FontChoice.PACIFICO -> Pacifico
+    FontChoice.SERIF -> FontFamily.Serif
+    FontChoice.IMPORTED -> importedFontPath
+        ?.let { path -> runCatching { Typeface.createFromFile(File(path)) }.getOrNull() }
+        ?.let { FontFamily(it) }
+        ?: FontFamily.Default
+}
 
-/** Material 3 type scale with every style switched to the chosen font family. */
-fun typographyFor(font: FontChoice): Typography {
+/** Material 3 type scale with every style switched to [family]. */
+fun typographyFor(family: FontFamily): Typography {
     val base = Typography()
-    if (font == FontChoice.SYSTEM) return base
-    val family = font.fontFamily
+    if (family == FontFamily.Default) return base
     fun TextStyle.withFamily() = copy(fontFamily = family)
     return base.copy(
         displayLarge = base.displayLarge.withFamily(),

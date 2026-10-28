@@ -2,9 +2,11 @@ name: Build
 
 on:
   push:
-    branches: [ '**' ]
+    branches: [ '**', '!dependabot/**' ]
     tags: [ 'v*' ]
   pull_request:
+  release:
+    types: [ published ]
   workflow_dispatch:
 
 permissions:
@@ -73,3 +75,93 @@ jobs:
           name: lint-report-${{ github.sha }}
           path: app/build/reports/lint-results-debug.html
           if-no-files-found: ignore
+
+  # Uploads the debug and release APKs as GitHub release assets when:
+  #  - a version tag (e.g. v1.0.0) is pushed,
+  #  - a release is published in the GitHub UI, or
+  #  - a pushed commit message contains "[release]" (tag = "v" + versionName).
+  release:
+    name: Publish GitHub release
+    needs: build
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      github.event_name == 'release' ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            TAG="$RELEASE_TAG"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="v$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)"
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "::error::Release $TAG already exists. Bump versionName in app/build.gradle.kts."
+              exit 1
+            fi
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Download APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: OpenShorts-${{ github.sha }}
+          path: build-output
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          cp build-output/*-debug.apk "release/OpenShorts-${TAG}-debug.apk"
+          cp build-output/*-release-unsigned.apk "release/OpenShorts-${TAG}-release-unsigned.apk"
+          cd release && sha256sum *.apk | tee SHA256SUMS.txt
+
+      - name: Write release notes
+        run: |
+          cat > notes.md <<NOTES
+          ## OpenShorts ${TAG}
+
+          Privacy-friendly, decentralized short-video client for PeerTube.
+          No account, no ads, no tracking.
+
+          ### Which file do I need?
+          | File | Use |
+          |------|-----|
+          | **OpenShorts-${TAG}-debug.apk** | Install this one on your phone (Android 8.0+) |
+          | OpenShorts-${TAG}-release-unsigned.apk | Optimized build, unsigned – for developers / own signing, not directly installable |
+
+          ### What's new
+          $(awk -v v="## [${TAG#v}]" '$0==v {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md)
+
+          ### Verify
+          \`\`\`
+          $(cat release/SHA256SUMS.txt)
+          \`\`\`
+          Built publicly by GitHub Actions from commit ${GITHUB_SHA}.
+
+          ### ☕ Support OpenShorts
+          https://buymeacoffee.com/3rr0r303yt
+          NOTES
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: OpenShorts ${{ env.TAG }}
+          # Keep the notes of releases written by hand in the GitHub UI.
+          body_path: ${{ github.event_name != 'release' && 'notes.md' || '' }}
+          files: |
+            release/*.apk
+            release/SHA256SUMS.txt
+          fail_on_unmatched_files: true

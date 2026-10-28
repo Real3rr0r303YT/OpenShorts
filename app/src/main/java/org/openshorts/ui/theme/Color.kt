@@ -18,17 +18,24 @@ data class PaletteSpec(
     val chroma: Float,
 )
 
-val ColorPalette.spec: PaletteSpec
-    get() = when (this) {
+/** [customHue] is only used by [ColorPalette.CUSTOM] (the user's accent color). */
+fun ColorPalette.spec(customHue: Float = 0f): PaletteSpec =
+    when (this) {
         ColorPalette.OCEAN -> PaletteSpec(primaryHue = 200f, secondaryHue = 210f, tertiaryHue = 250f, chroma = 0.85f)
         ColorPalette.FOREST -> PaletteSpec(primaryHue = 140f, secondaryHue = 120f, tertiaryHue = 180f, chroma = 0.55f)
         ColorPalette.SUNSET -> PaletteSpec(primaryHue = 18f, secondaryHue = 30f, tertiaryHue = 330f, chroma = 0.80f)
         ColorPalette.GRAPE -> PaletteSpec(primaryHue = 275f, secondaryHue = 285f, tertiaryHue = 330f, chroma = 0.60f)
         ColorPalette.MONOCHROME -> PaletteSpec(primaryHue = 0f, secondaryHue = 0f, tertiaryHue = 0f, chroma = 0f)
+        ColorPalette.CUSTOM -> PaletteSpec(
+            primaryHue = customHue,
+            secondaryHue = customHue,
+            tertiaryHue = (customHue + 60f) % 360f,
+            chroma = 0.75f,
+        )
     }
 
-fun ColorPalette.colorScheme(dark: Boolean): ColorScheme {
-    val spec = spec
+fun ColorPalette.colorScheme(dark: Boolean, customHue: Float = 0f): ColorScheme {
+    val spec = this.spec(customHue)
     fun tone(hue: Float, tone: Int, chromaScale: Float = 1f) =
         Color.hsl(hue, (spec.chroma * chromaScale).coerceIn(0f, 1f), tone / 100f)
 
