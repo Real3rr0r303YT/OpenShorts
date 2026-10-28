@@ -31,27 +31,44 @@ Install `OpenShorts-vX.Y.Z-debug.apk`. Each release includes SHA-256 checksums s
 
 ## Features
 
-- 📱 **Vertical full-screen feed** – swipe up/down between videos, tap to pause/resume
-- 🌐 **PeerTube support** – use any public instance (default: `framatube.org`)
-- ⏱️ **Shorts filter** – optionally show only videos up to 3 minutes
-- 🎨 **Material Design 3 theme engine**
-  - Light / dark / system mode
-  - Material You dynamic color (Android 12+)
-  - Five built-in color schemes (Ocean, Forest, Sunset, Grape, Mono)
-  - Pure-black AMOLED mode
-  - Selectable fonts, with support for bundling your own
+- 📱 **TikTok-style vertical feed** – smooth swipe animations, tap to pause, **double-tap to like** with a flying heart,
+  playback progress bar, pull to refresh
+- 🛡️ **Tech & cybersecurity first** – the default **Tech** tab shows videos tagged
+  `cybersecurity`, `hacking`, `linux`, `infosec`, `programming` and `tech`; tech-focused PeerTube servers are offered
+  as quick picks. Tabs for Trending, Latest and Local are one tap away.
+- 🔍 **Search** – free text, `#tags` and `@creator@server`, live creator suggestions, tech topic shortcuts
+- ❤️ **Action rail** on every video – creator avatar with follow button, like button with animated live counter,
+  comments, save/bookmark, share and a spinning creator disc
+- 💬 **Comments** – read a video's PeerTube comments in a bottom sheet
+- 👤 **Profile** – avatar, custom banner (image or color), bio, supporter badge, your own tip link, stats
+  (following / followers / likes) and tabs for posted, liked and saved videos and followed creators
+- ✉️ **Inbox & chat** – conversations with creators and contacts (see limitations below)
+- 🎨 **Theme engine (Material 3)**
+  - Light / dark / system mode, **Material You** dynamic color (Android 12+), **AMOLED black**
+  - Six color schemes including a **custom accent color** (hue slider)
+  - **Custom fonts**: bundled Poppins, Atkinson Hyperlegible, Space Mono and Pacifico (`res/font/`), or
+    **import your own .ttf/.otf** – applied app-wide
+- 🌐 **Server selection** – tech PeerTube servers as presets or any custom HTTPS server
 - 🔒 **Privacy by design**
-  - Only the `INTERNET` permission
-  - HTTPS only (cleartext traffic disabled)
+  - Only the `INTERNET` permission, HTTPS only (cleartext traffic disabled)
   - No Google Play Services, Firebase, analytics, crash reporters or ads
-  - Settings are stored locally and excluded from cloud backups
+  - Profile, likes, follows and chats are stored only on the device and excluded from cloud backups
 - 🛠️ **Transparent builds** – every APK is built by GitHub Actions with published SHA-256 checksums
+
+### Current limitations (honest list)
+
+- **Account:** the profile is a *local* account. There is no OpenShorts server and no sign-up, so nobody can
+  follow it yet – the follower count is therefore 0.
+- **Direct messages:** PeerTube has no direct-message API. Chats are stored on the device and are **not delivered**
+  to the contact yet. The `ChatRepository` is where a real transport (e.g. Matrix) will plug in.
+- **Posting videos and writing comments** require an account on a PeerTube server and are planned for a later version.
+- Likes and follows are local; they are not sent to PeerTube.
 
 ## Screens
 
-| Feed | Settings |
-|------|----------|
-| Full-screen video, channel, title, stats, share & open-in-browser | Donation card, theme, colors, font, instance, playback options, about |
+| Feed | Profile | Inbox | Settings |
+|------|---------|-------|----------|
+| Tabs (Tech, Trending, Latest, Local), search, action rail, comments | Banner, avatar, bio, stats, liked/saved videos, following | Conversations & chat | Support button, theme, colors, fonts, servers |
 
 ## Tech stack
 
@@ -115,29 +132,37 @@ app/src/main/java/org/openshorts/
 ├── MainActivity.kt          # Edge-to-edge activity, simple screen switching
 ├── OpenShortsApp.kt         # Application + tiny dependency container
 ├── data/
-│   ├── AppSettings.kt       # Settings model (theme, palette, font, instance…)
+│   ├── AppSettings.kt       # Settings model (theme, palette, font, servers…)
 │   ├── SettingsRepository.kt# DataStore persistence
-│   ├── InstanceUrl.kt       # Instance URL validation
+│   ├── ProfileRepository.kt # Local account: profile, likes, saved videos, follows
+│   ├── ChatRepository.kt    # Conversations (stored locally)
+│   ├── LocalFiles.kt        # Import of profile images and fonts
+│   ├── SearchQuery.kt       # Search syntax (#tag, @creator) and tech tags
 │   └── peertube/            # PeerTube API client and models
 └── ui/
-    ├── theme/               # Theme engine: palettes, dynamic color, fonts, dark mode
-    ├── feed/                # Vertical pager feed + ExoPlayer surface
+    ├── theme/               # Theme engine: palettes, accent color, Material You, AMOLED, fonts
+    ├── feed/                # Feed, video page + action rail, search, comments, creator sheet
+    ├── profile/             # Profile and profile editor
+    ├── chat/                # Inbox and chat
     ├── settings/            # Settings screen + donation card
-    └── components/          # Thumbnail loader, formatting helpers
+    └── components/          # Image loader, avatar, formatting helpers
 ```
 
-### Adding a custom font
+### Fonts
 
-1. Put the font files (e.g. `inter_regular.ttf`) into `app/src/main/res/font/`.
+Users can import any `.ttf`/`.otf` font in **Settings → Font**. To bundle another font with the app:
+
+1. Put the font files (lowercase names, e.g. `inter_regular.ttf`) into `app/src/main/res/font/`.
 2. Add an entry to `FontChoice` in `data/AppSettings.kt`.
-3. Map it to a `FontFamily` in `ui/theme/Type.kt` and add a label string.
-4. Only use fonts with a GPL-compatible license (e.g. SIL OFL) and list them in [CREDITS.md](CREDITS.md).
+3. Map it in `fontFamilyFor()` in `ui/theme/Type.kt` and add a label string.
+4. Only use fonts with a GPL-compatible license (e.g. SIL OFL), put the license into `licenses/fonts/` and list
+   the font in [CREDITS.md](CREDITS.md).
 
 ## Roadmap
 
-- [ ] Multiple instances / federated search
-- [ ] Channel pages and subscriptions (stored locally)
-- [ ] Comments (read-only)
+- [ ] PeerTube login (OAuth): real likes, comments and uploads
+- [ ] Delivered direct messages via a decentralized protocol (e.g. Matrix)
+- [ ] "Following" feed built from followed creators
 - [ ] Additional platforms
 - [ ] F-Droid release
 

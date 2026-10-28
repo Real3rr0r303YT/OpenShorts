@@ -18,6 +18,7 @@ data class PeerTubeVideo(
     val duration: Int = 0,
     val views: Long = 0,
     val likes: Long = 0,
+    val comments: Long = 0,
     val isLive: Boolean = false,
     val thumbnailPath: String? = null,
     val previewPath: String? = null,
@@ -30,6 +31,18 @@ data class PeerTubeActor(
     val name: String = "",
     val displayName: String = "",
     val host: String = "",
+    val url: String? = null,
+    val followersCount: Long = 0,
+    /** PeerTube < 6 */
+    val avatar: ActorImage? = null,
+    /** PeerTube ≥ 4: several sizes */
+    val avatars: List<ActorImage> = emptyList(),
+)
+
+@Serializable
+data class ActorImage(
+    val path: String? = null,
+    val width: Int = 0,
 )
 
 @Serializable
@@ -55,4 +68,26 @@ data class VideoFile(
 data class Resolution(
     val id: Int = 0,
     val label: String = "",
+)
+
+@Serializable
+data class CommentThreadsResponse(
+    val total: Int = 0,
+    val data: List<PeerTubeComment> = emptyList(),
+)
+
+@Serializable
+data class PeerTubeComment(
+    val id: Long = 0,
+    val text: String = "",
+    val isDeleted: Boolean = false,
+    val createdAt: String = "",
+    val totalReplies: Int = 0,
+    val account: PeerTubeActor? = null,
+)
+
+@Serializable
+data class ChannelSearchResponse(
+    val total: Int = 0,
+    val data: List<PeerTubeActor> = emptyList(),
 )

@@ -140,6 +140,9 @@ jobs:
           | **OpenShorts-${TAG}-debug.apk** | Install this one on your phone (Android 8.0+) |
           | OpenShorts-${TAG}-release-unsigned.apk | Optimized build, unsigned – for developers / own signing, not directly installable |
 
+          ### What's new
+          $(awk -v v="## [${TAG#v}]" '$0==v {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md)
+
           ### Verify
           \`\`\`
           $(cat release/SHA256SUMS.txt)

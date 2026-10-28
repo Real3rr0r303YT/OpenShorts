@@ -1,6 +1,22 @@
 package org.openshorts.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material.icons.filled.FontDownload
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +42,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Favorite
@@ -38,7 +53,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -75,30 +89,27 @@ import org.openshorts.data.AppSettings
 import org.openshorts.data.ColorPalette
 import org.openshorts.data.FontChoice
 import org.openshorts.data.ThemeMode
+import org.openshorts.data.PRESET_INSTANCES
 import org.openshorts.ui.theme.colorScheme
-import org.openshorts.ui.theme.fontFamily
+import org.openshorts.ui.theme.fontFamilyFor
 import org.openshorts.ui.theme.supportsDynamicColor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
-    onBack: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
 ) {
     val uriHandler = LocalUriHandler.current
+    val fontError by viewModel.fontError.collectAsStateWithLifecycle()
+    val pickFont = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::importFont)
+    }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-            )
-        },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.settings)) }) },
+        // The bottom navigation bar already handles the system bar insets.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(
             modifier = Modifier
@@ -138,29 +149,60 @@ fun SettingsScreen(
             )
 
             SettingLabel(R.string.color_scheme)
+            val paletteEnabled = !(settings.dynamicColor && supportsDynamicColor)
             PalettePicker(
                 selected = settings.palette,
-                enabled = !(settings.dynamicColor && supportsDynamicColor),
+                customHue = settings.customHue,
+                enabled = paletteEnabled,
                 dark = settings.isDark(isSystemInDarkTheme()),
                 onSelect = viewModel::setPalette,
             )
+            if (settings.palette == ColorPalette.CUSTOM && paletteEnabled) {
+                SettingLabel(R.string.accent_color)
+                AccentHueSlider(hue = settings.customHue, onHueChange = viewModel::setCustomHue)
+            }
 
             SettingLabel(R.string.font)
-            FontChoice.entries.forEach { font ->
+            FontChoice.entries.filter { it != FontChoice.IMPORTED }.forEach { font ->
                 RadioRow(
                     selected = settings.font == font,
                     onClick = { viewModel.setFont(font) },
                 ) {
                     Text(
                         text = stringResource(font.labelRes),
-                        fontFamily = font.fontFamily,
+                        fontFamily = fontFamilyFor(font),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             }
+            if (settings.importedFontPath != null) {
+                RadioRow(
+                    selected = settings.font == FontChoice.IMPORTED,
+                    onClick = { viewModel.setFont(FontChoice.IMPORTED) },
+                ) {
+                    Text(
+                        text = settings.importedFontName ?: stringResource(R.string.font_imported),
+                        fontFamily = fontFamilyFor(FontChoice.IMPORTED, settings.importedFontPath),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = {
+                    pickFont.launch(
+                        arrayOf("font/ttf", "font/otf", "font/sfnt", "application/x-font-ttf", "application/x-font-otf", "application/octet-stream"),
+                    )
+                },
+            ) {
+                Icon(Icons.Filled.FontDownload, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.font_import))
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(R.string.section_feed)
+            SettingLabel(R.string.instance_presets)
+            InstancePresets(current = settings.instanceUrl, onSelect = { viewModel.setInstanceUrl(it) })
             InstanceField(currentUrl = settings.instanceUrl, onSave = viewModel::setInstanceUrl)
             SwitchRow(
                 title = R.string.shorts_only,
@@ -191,6 +233,14 @@ fun SettingsScreen(
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    if (fontError) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissFontError,
+            confirmButton = { TextButton(onClick = viewModel::dismissFontError) { Text(stringResource(R.string.ok)) } },
+            text = { Text(stringResource(R.string.font_import_error)) },
+        )
     }
 }
 
@@ -233,9 +283,52 @@ private fun DonationCard(onDonate: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InstancePresets(current: String, onSelect: (String) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        PRESET_INSTANCES.forEach { preset ->
+            FilterChip(
+                selected = preset.url == current,
+                onClick = { onSelect(preset.url) },
+                label = { Text(preset.name) },
+                leadingIcon = if (preset.isTech) {
+                    { Icon(Icons.Filled.Terminal, contentDescription = stringResource(R.string.instance_tech), modifier = Modifier.size(18.dp)) }
+                } else {
+                    null
+                },
+            )
+        }
+    }
+}
+
+/** Hue slider drawn over the full color wheel, for the custom accent color. */
+@Composable
+private fun AccentHueSlider(hue: Float, onHueChange: (Float) -> Unit) {
+    var value by remember(hue) { mutableFloatStateOf(hue) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(12.dp)
+            .clip(CircleShape)
+            .background(Brush.horizontalGradient((0..360 step 30).map { Color.hsl(it.toFloat(), 0.75f, 0.5f) })),
+    )
+    Slider(
+        value = value,
+        onValueChange = { value = it },
+        onValueChangeFinished = { onHueChange(value) },
+        valueRange = 0f..360f,
+        colors = SliderDefaults.colors(
+            thumbColor = Color.hsl(value, 0.75f, 0.5f),
+            activeTrackColor = Color.hsl(value, 0.75f, 0.5f),
+        ),
+    )
+}
+
 @Composable
 private fun PalettePicker(
     selected: ColorPalette,
+    customHue: Float,
     enabled: Boolean,
     dark: Boolean,
     onSelect: (ColorPalette) -> Unit,
@@ -248,7 +341,7 @@ private fun PalettePicker(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         ColorPalette.entries.forEach { palette ->
-            val scheme = remember(palette, dark) { palette.colorScheme(dark) }
+            val scheme = remember(palette, dark, customHue) { palette.colorScheme(dark, customHue) }
             val isSelected = palette == selected
             val label = stringResource(palette.labelRes)
             Column(
@@ -411,14 +504,17 @@ private val ColorPalette.labelRes: Int
         ColorPalette.SUNSET -> R.string.palette_sunset
         ColorPalette.GRAPE -> R.string.palette_grape
         ColorPalette.MONOCHROME -> R.string.palette_monochrome
+        ColorPalette.CUSTOM -> R.string.palette_custom
     }
 
 @get:StringRes
 private val FontChoice.labelRes: Int
     get() = when (this) {
         FontChoice.SYSTEM -> R.string.font_system
-        FontChoice.SANS_SERIF -> R.string.font_sans_serif
+        FontChoice.POPPINS -> R.string.font_poppins
+        FontChoice.ATKINSON_HYPERLEGIBLE -> R.string.font_atkinson
+        FontChoice.SPACE_MONO -> R.string.font_space_mono
+        FontChoice.PACIFICO -> R.string.font_pacifico
         FontChoice.SERIF -> R.string.font_serif
-        FontChoice.MONOSPACE -> R.string.font_monospace
-        FontChoice.CURSIVE -> R.string.font_cursive
+        FontChoice.IMPORTED -> R.string.font_imported
     }

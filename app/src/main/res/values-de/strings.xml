@@ -1,20 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Navigation -->
+    <string name="nav_home">Start</string>
+    <string name="nav_inbox">Postfach</string>
+    <string name="nav_profile">Profil</string>
+    <string name="nav_settings">Einstellungen</string>
+
     <!-- Feed -->
+    <string name="tab_tech">Tech</string>
+    <string name="tab_trending">Trends</string>
+    <string name="tab_latest">Neu</string>
+    <string name="tab_local">Lokal</string>
     <string name="feed_error">Videos konnten nicht geladen werden.\n%1$s</string>
-    <string name="feed_empty">Auf dieser Instanz wurden keine Videos gefunden.</string>
+    <string name="feed_empty">Auf diesem Server wurden keine passenden Videos gefunden.</string>
+    <string name="change_instance">Server wechseln</string>
     <string name="playback_error">Dieses Video kann nicht abgespielt werden.</string>
-    <string name="video_stats">%1$s Aufrufe · %2$s Likes · %3$s</string>
+    <string name="video_stats">%1$s Aufrufe · %2$s</string>
     <string name="retry">Erneut versuchen</string>
     <string name="play">Abspielen</string>
+    <string name="like">Gefällt mir</string>
+    <string name="unlike">Like entfernen</string>
+    <string name="comments">Kommentare</string>
+    <string name="save_video">Speichern</string>
+    <string name="saved">Gespeichert</string>
     <string name="share">Teilen</string>
-    <string name="open_in_browser">Auf Instanz öffnen</string>
+    <string name="follow">Folgen</string>
+    <string name="unfollow">Entfolgen</string>
+    <string name="following_button">Gefolgt</string>
+    <string name="message">Nachricht</string>
+    <string name="creator_videos">Videos</string>
+    <string name="open_channel">Kanal</string>
+    <string name="open_in_browser">Auf Server öffnen</string>
+
+    <!-- Comments -->
+    <plurals name="comment_count">
+        <item quantity="one">%d Kommentar</item>
+        <item quantity="other">%d Kommentare</item>
+    </plurals>
+    <plurals name="reply_count">
+        <item quantity="one">%d Antwort</item>
+        <item quantity="other">%d Antworten</item>
+    </plurals>
+    <string name="comments_empty">Noch keine Kommentare.</string>
+    <string name="comments_write_hint">Zum Kommentieren brauchst du ein Konto auf dem PeerTube-Server des Videos.</string>
+
+    <!-- Search -->
+    <string name="search">Suche</string>
+    <string name="search_hint">Videos, #Tags oder @Ersteller</string>
+    <string name="search_clear">Suche beenden</string>
+    <string name="search_videos_for">Videos zu „%1$s“</string>
+    <string name="search_creators">Ersteller</string>
+    <string name="search_topics">Tech- &amp; Security-Themen</string>
+    <string name="search_no_results">Keine Ergebnisse.</string>
+    <string name="search_syntax_hint">Tipp: #linux sucht nach einem Tag, @name@server zeigt die Videos eines Erstellers.</string>
+    <plurals name="follower_count">
+        <item quantity="one">%s Follower</item>
+        <item quantity="other">%s Follower</item>
+    </plurals>
+
+    <!-- Inbox / chat -->
+    <string name="inbox">Postfach</string>
+    <string name="inbox_empty">Noch keine Unterhaltungen. Starte eine über „Neue Nachricht“ oder im Profil eines Erstellers.</string>
+    <string name="new_message">Neue Nachricht</string>
+    <string name="chat_contact_handle">Kontakt (@name@server)</string>
+    <string name="chat_from_following">Ersteller, denen du folgst</string>
+    <string name="chat_start">Chat starten</string>
+    <string name="chat_input_hint">Nachricht …</string>
+    <string name="chat_send">Senden</string>
+    <string name="chat_delete">Unterhaltung löschen</string>
+    <string name="chat_local_notice">Nachrichten werden vorerst nur auf diesem Gerät gespeichert. PeerTube hat keine Direktnachrichten-Funktion, daher werden sie noch nicht an den Kontakt zugestellt.</string>
+
+    <!-- Profile -->
+    <string name="profile_anonymous">Dein Profil</string>
+    <string name="setup_profile">Profil einrichten</string>
+    <string name="edit_profile">Profil bearbeiten</string>
+    <string name="profile_tip_me">Unterstütze mich</string>
+    <string name="stat_following">Folge ich</string>
+    <string name="stat_followers">Follower</string>
+    <string name="stat_likes">Likes</string>
+    <string name="profile_tab_posted">Gepostet</string>
+    <string name="profile_tab_liked">Gelikt</string>
+    <string name="profile_tab_saved">Gespeichert</string>
+    <string name="profile_tab_following">Folge ich</string>
+    <string name="profile_posted_empty">Zum Hochladen brauchst du ein Konto auf einem PeerTube-Server. Das ist für eine spätere Version geplant.</string>
+    <string name="profile_liked_empty">Videos, die dir gefallen, erscheinen hier. Tippe doppelt auf ein Video, um es zu liken.</string>
+    <string name="profile_saved_empty">Tippe auf das Lesezeichen eines Videos, um es hier zu speichern.</string>
+    <string name="profile_following_empty">Tippe auf das + am Avatar eines Erstellers, um ihm zu folgen.</string>
+    <string name="change_avatar">Foto ändern</string>
+    <string name="change_banner">Banner ändern</string>
+    <string name="remove_avatar">Foto entfernen</string>
+    <string name="remove_banner">Banner entfernen</string>
+    <string name="banner_color">Banner-Farbe</string>
+    <string name="profile_name">Name</string>
+    <string name="profile_username">Benutzername</string>
+    <string name="profile_username_hint">Buchstaben, Ziffern, „.“ und „_“</string>
+    <string name="profile_bio">Bio</string>
+    <string name="section_support_settings">Spenden &amp; Unterstützung</string>
+    <string name="profile_support_url">Dein Spenden-Link</string>
+    <string name="profile_support_url_hint">Wird als „Unterstütze mich“ in deinem Profil angezeigt, z. B. Buy Me a Coffee oder Liberapay.</string>
+    <string name="profile_support_url_invalid">Bitte einen gültigen https://-Link eingeben.</string>
+    <string name="supporter_badge">Unterstützer-Abzeichen</string>
+    <string name="supporter_badge_summary">Zeigen, dass du OpenShorts unterstützt</string>
+    <string name="profile_local_notice">Dein Profil wird nur auf diesem Gerät gespeichert. Es gibt keinen OpenShorts-Server und keine Registrierung.</string>
+    <string name="image_import_error">Dieses Bild konnte nicht verwendet werden.</string>
 
     <!-- Settings -->
     <string name="settings">Einstellungen</string>
     <string name="back">Zurück</string>
     <string name="save">Speichern</string>
     <string name="reset">Zurücksetzen</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Abbrechen</string>
 
     <string name="donate_title">Support OpenShorts</string>
     <string name="donate_body">OpenShorts ist kostenlos, quelloffen und frei von Werbung und Tracking. Wenn dir die App gefällt, kannst du die Entwicklung mit einem Kaffee unterstützen.</string>
@@ -25,35 +121,43 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Hell</string>
     <string name="theme_dark">Dunkel</string>
-    <string name="dynamic_color">Dynamische Farben</string>
-    <string name="dynamic_color_summary">Farben aus dem Hintergrundbild verwenden (Material You)</string>
+    <string name="dynamic_color">Material You</string>
+    <string name="dynamic_color_summary">Farben aus dem Hintergrundbild verwenden</string>
     <string name="dynamic_color_unsupported">Erfordert Android 12 oder neuer</string>
-    <string name="pure_black">Reines Schwarz</string>
-    <string name="pure_black_summary">Echter schwarzer Hintergrund im Dunkelmodus (AMOLED)</string>
+    <string name="pure_black">AMOLED-Schwarz</string>
+    <string name="pure_black_summary">Echter schwarzer Hintergrund im Dunkelmodus</string>
     <string name="color_scheme">Farbschema</string>
     <string name="palette_ocean">Ozean</string>
     <string name="palette_forest">Wald</string>
     <string name="palette_sunset">Abendrot</string>
     <string name="palette_grape">Traube</string>
     <string name="palette_monochrome">Mono</string>
+    <string name="palette_custom">Eigene</string>
+    <string name="accent_color">Akzentfarbe</string>
     <string name="font">Schriftart</string>
     <string name="font_system">Systemstandard</string>
-    <string name="font_sans_serif">Serifenlos</string>
+    <string name="font_poppins">Poppins</string>
+    <string name="font_atkinson">Atkinson Hyperlegible</string>
+    <string name="font_space_mono">Space Mono</string>
+    <string name="font_pacifico">Pacifico</string>
     <string name="font_serif">Serif</string>
-    <string name="font_monospace">Monospace</string>
-    <string name="font_cursive">Kursiv</string>
+    <string name="font_imported">Importierte Schrift</string>
+    <string name="font_import">Schriftart importieren (.ttf / .otf)</string>
+    <string name="font_import_error">Diese Datei ist keine unterstützte Schriftart. Bitte eine .ttf- oder .otf-Datei wählen.</string>
 
-    <string name="section_feed">Feed</string>
-    <string name="instance">PeerTube-Instanz</string>
+    <string name="section_feed">Feed &amp; Server</string>
+    <string name="instance_presets">PeerTube-Server</string>
+    <string name="instance_tech">Tech-Server</string>
+    <string name="instance">Eigener Server</string>
     <string name="instance_summary">Videos werden anonym ausschließlich von diesem Server geladen.</string>
     <string name="instance_invalid">Bitte eine gültige https://-Adresse eingeben.</string>
     <string name="shorts_only">Nur kurze Videos</string>
-    <string name="shorts_only_summary">Nur Videos mit bis zu 3 Minuten Länge anzeigen</string>
+    <string name="shorts_only_summary">In den Feed-Tabs nur Videos bis 3 Minuten anzeigen</string>
     <string name="loop_videos">Videos wiederholen</string>
     <string name="loop_videos_summary">Video am Ende automatisch neu starten</string>
 
     <string name="section_about">Über</string>
-    <string name="about_privacy">Kein Tracking. Keine Analytics. Keine Werbung. Kein Konto.</string>
+    <string name="about_privacy">Kein Tracking. Keine Analytics. Keine Werbung. Keine Registrierung.</string>
     <string name="about_license">OpenShorts ist freie Software, lizenziert unter der GNU General Public License v3.0.</string>
     <string name="version">Version %1$s</string>
     <string name="source_code">Quellcode</string>

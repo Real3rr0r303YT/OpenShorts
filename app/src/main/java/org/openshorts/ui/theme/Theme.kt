@@ -17,7 +17,8 @@ val supportsDynamicColor: Boolean
 
 /**
  * OpenShorts theme engine: combines dark mode, Material You dynamic color,
- * built-in palettes, an AMOLED black option and the selected font.
+ * built-in palettes, a custom accent color, an AMOLED black option and the
+ * selected (bundled or imported) font.
  */
 @Composable
 fun OpenShortsTheme(
@@ -31,10 +32,14 @@ fun OpenShortsTheme(
     val baseScheme = when {
         useDynamic && dark -> dynamicDarkColorScheme(context)
         useDynamic -> dynamicLightColorScheme(context)
-        else -> remember(settings.palette, dark) { settings.palette.colorScheme(dark) }
+        else -> remember(settings.palette, settings.customHue, dark) {
+            settings.palette.colorScheme(dark, settings.customHue)
+        }
     }
     val colorScheme = if (dark && settings.pureBlack) baseScheme.toPureBlack() else baseScheme
-    val typography = remember(settings.font) { typographyFor(settings.font) }
+    val typography = remember(settings.font, settings.importedFontPath) {
+        typographyFor(fontFamilyFor(settings.font, settings.importedFontPath))
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,
