@@ -64,7 +64,8 @@ fun ChatScreen(
     val messageCount = conversation?.messages?.size ?: 0
 
     LaunchedEffect(conversationId) { viewModel.markRead(conversationId) }
-    LaunchedEffect(messageCount) { if (messageCount > 0) listState.animateScrollToItem(messageCount) // item 0 is the notice }
+    // Item 0 is the notice, so the last message has index messageCount.
+    LaunchedEffect(messageCount) { if (messageCount > 0) listState.animateScrollToItem(messageCount) }
 
     Scaffold(
         topBar = {
