@@ -61,6 +61,9 @@ open class AdBlockWebView(
             useWideViewPort = true
             userAgentString = userAgentFor(context, identity)
         }
+        // Client hints (Sec-CH-UA…) must tell the same story as the User-Agent, otherwise
+        // Google/YouTube see an "Android WebView" brand and may treat the page as a bot.
+        if (identity == BrowserIdentity.CHROME_MOBILE) applyChromeClientHints(settings, settings.userAgentString)
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
         webChromeClient = WebChromeClient()
         webViewClient = AdBlockWebViewClient()
@@ -120,6 +123,7 @@ open class AdBlockWebViewClient : WebViewClient() {
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         view?.evaluateJavascript(BANNER_REMOVER_SCRIPT, null)
+        if (url != null && isYouTubeUrl(url)) view?.evaluateJavascript(YOUTUBE_CONSENT_AND_PLAY_SCRIPT, null)
     }
 }
 
@@ -158,6 +162,36 @@ val BANNER_REMOVER_SCRIPT: String = run {
     })();
     """.trimIndent()
 }
+
+/** True for youtube.com pages (www., m., music. …). */
+fun isYouTubeUrl(url: String): Boolean {
+    val host = runCatching { java.net.URI(url).host }.getOrNull()?.lowercase() ?: return false
+    return host == "youtube.com" || host.endsWith(".youtube.com")
+}
+
+/**
+ * YouTube: hides the consent dialog and its backdrop (display:none, nothing is accepted),
+ * releases the scroll lock and starts the video (muted if the browser refuses sound without a tap).
+ */
+const val YOUTUBE_CONSENT_AND_PLAY_SCRIPT = """
+(function(){
+  if(!document.getElementById('openshorts-yt')){
+    var s=document.createElement('style');
+    s.id='openshorts-yt';
+    s.textContent='ytd-consent-bump-v2-lightbox,ytd-consent-bump-v2-renderer,ytm-consent-bump-v2-renderer,'+
+      'tp-yt-paper-dialog,tp-yt-iron-overlay-backdrop,.consent-bump-v2-lightbox{display:none!important}';
+    (document.head||document.documentElement).appendChild(s);
+  }
+  if(document.body){document.body.style.overflow='auto';}
+  function play(){
+    document.querySelectorAll('video').forEach(function(v){
+      if(v.paused){var p=v.play();if(p&&p.catch){p.catch(function(){v.muted=true;v.play();});}}
+    });
+  }
+  play();
+  setTimeout(play,1500);
+})()
+"""
 
 /** Compose wrapper: an [AdBlockWebView] showing [url]. */
 @Composable

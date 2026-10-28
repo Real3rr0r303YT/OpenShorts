@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.openshorts.OpenShortsApp
 import org.openshorts.R
 import org.openshorts.data.SHORT_CLIP_MAX_SECONDS
@@ -410,36 +411,18 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
         loadJob = viewModelScope.launch {
             try {
-                val batch = mutableListOf<Video>()
-                var end = false
-                var pages = 0
-                // A page may contain few short clips, so fetch a few pages per load.
-                while (batch.size < MIN_BATCH && !end && pages < MAX_PAGES_PER_LOAD) {
-                    val yt = src.content as? FeedContent.YouTube
-                    if (src.content is FeedContent.TikTok) {
-                        // The shared links, in the order they were added; nothing to rank or filter.
-                        batch += profiles.tikTokVideos.first()
-                        end = true
-                        break
-                    }
-                    val page = if (yt != null) {
-                        fetchYouTube(yt).also { end = it.second }.first
-                    } else {
-                        fetchPage(src, nextStart).also { end = it.size < PAGE_SIZE }
-                    }
-                    nextStart += PAGE_SIZE
-                    pages++
-                    batch += rankShorts(page, shortsOnly = src.shortsOnly)
-                    val content = src.content
-                    if (end && batch.isEmpty() && content is FeedContent.Search &&
-                        content.query is SearchQuery.Category && !categoryFallback
-                    ) {
-                        // No tagged clips: search the category name as text instead.
-                        categoryFallback = true
-                        nextStart = 0
-                        end = false
-                    }
+                val isYouTube = src.content is FeedContent.YouTube
+                // YouTube proxies can be slow or deliver nothing usable: never keep the spinner up for minutes.
+                val result = if (isYouTube) {
+                    withTimeoutOrNull(YOUTUBE_LOAD_BUDGET_MS) { collectBatch(src) }
+                } else {
+                    collectBatch(src)
                 }
+                if (result == null) {
+                    _state.update { it.copy(isLoading = false, youTubeUnavailable = it.videos.isEmpty()) }
+                    return@launch
+                }
+                val (batch, end) = result
                 _state.update {
                     it.copy(
                         videos = (it.videos + batch).distinctBy(Video::uuid),
@@ -450,7 +433,11 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 // Keep loading (a few times) until something can be shown, otherwise the spinner would never end.
                 emptyLoads = if (_state.value.videos.isEmpty()) emptyLoads + 1 else 0
                 if (_state.value.videos.isEmpty() && !end) {
-                    if (emptyLoads < MAX_EMPTY_LOADS) loadMore() else _state.update { it.copy(endReached = true) }
+                    when {
+                        emptyLoads < (if (isYouTube) 2 else MAX_EMPTY_LOADS) -> loadMore()
+                        isYouTube -> _state.update { it.copy(youTubeUnavailable = true) }
+                        else -> _state.update { it.copy(endReached = true) }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -463,6 +450,42 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    /** Fetches pages until there are enough clips (or nothing more); returns the clips and "end reached". */
+    private suspend fun collectBatch(src: FeedSource): Pair<List<Video>, Boolean> {
+        val batch = mutableListOf<Video>()
+        var end = false
+        var pages = 0
+        val maxPages = if (src.content is FeedContent.YouTube) MAX_YOUTUBE_PAGES_PER_LOAD else MAX_PAGES_PER_LOAD
+        // A page may contain few short clips, so fetch a few pages per load.
+        while (batch.size < MIN_BATCH && !end && pages < maxPages) {
+            val yt = src.content as? FeedContent.YouTube
+            if (src.content is FeedContent.TikTok) {
+                // The shared links, in the order they were added; nothing to rank or filter.
+                batch += profiles.tikTokVideos.first()
+                end = true
+                break
+            }
+            val page = if (yt != null) {
+                fetchYouTube(yt).also { end = it.second }.first
+            } else {
+                fetchPage(src, nextStart).also { end = it.size < PAGE_SIZE }
+            }
+            nextStart += PAGE_SIZE
+            pages++
+            batch += rankShorts(page, shortsOnly = src.shortsOnly)
+            val content = src.content
+            if (end && batch.isEmpty() && content is FeedContent.Search &&
+                content.query is SearchQuery.Category && !categoryFallback
+            ) {
+                // No tagged clips: search the category name as text instead.
+                categoryFallback = true
+                nextStart = 0
+                end = false
+            }
+        }
+        return batch to end
     }
 
     /** Fetches the next YouTube page; returns the videos and whether nothing more can be loaded. */
@@ -655,6 +678,10 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         const val PAGE_SIZE = 25
         const val MIN_BATCH = 8
         const val MAX_PAGES_PER_LOAD = 4
+        const val MAX_YOUTUBE_PAGES_PER_LOAD = 2
+
+        /** Longest time the YouTube feed may show the loading spinner before offering alternatives. */
+        const val YOUTUBE_LOAD_BUDGET_MS = 25_000L
         const val PRELOAD_THRESHOLD = 3
         const val MAX_EMPTY_LOADS = 3
         const val MAX_AUTO_SKIPS = 5

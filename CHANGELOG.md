@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.7.1]
+
+### Fixed
+- **YouTube Shorts feed stuck on the loading spinner**: the feed now gives up after 25 s (instead of possibly
+  several minutes of retries over 4 pages each) and offers alternatives; at most 2 pages per load
+- YouTube results without a length (0/-1) were dropped by the "Shorts only" filter, so pages full of Shorts
+  could show nothing; they are now kept
+- The parallel instance race could wait forever if a request ended with an unexpected error; every request now
+  reports back
+
+### Added
+- **YouTube Shorts web feed**: "🌐 Web feed" tab and a button in the "overloaded" message open
+  `https://www.youtube.com/shorts` in the ad-blocking in-app browser (Home returns there)
+- In-app browser on YouTube: the consent dialog (`ytd-consent-bump-v2-*`, its `tp-yt-paper-dialog`/backdrop) is
+  hidden with `display:none` (nothing is accepted), the scroll lock released and the video started with `play()`
+- **Client hints**: `Sec-CH-UA*` now match the Chrome User-Agent (brands Chromium/Google Chrome, mobile, Android)
+  instead of "Android WebView" (via `androidx.webkit` user-agent metadata, where the WebView supports it)
+
+### Changed
+- Ad blocker never touches what the YouTube player needs: `googlevideo.com`, `ytimg.com`, `ggpht.com`,
+  `youtube.com/s/player`, `youtube.com/youtubei/`, `play.google.com/log`, …; path-based rules are no longer applied
+  to youtube.com/google.com URLs (ad and tracker *domains* stay blocked)
+
 ## [1.7.0]
 
 ### Added

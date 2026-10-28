@@ -36,6 +36,12 @@ class FeedRankingTest {
     }
 
     @Test
+    fun `keeps YouTube shorts without a length`() {
+        val short = video("yt", 0).copy(platform = org.openshorts.data.peertube.PLATFORM_YOUTUBE)
+        assertEquals(listOf("yt"), rankShorts(listOf(short, video("pt", 0)), shortsOnly = true).map { it.uuid })
+    }
+
+    @Test
     fun `plain category words become category searches`() {
         assertEquals(SearchQuery.Category(TrendCategory.EDITS), parseSearchQuery("Edits"))
         assertEquals(SearchQuery.Category(TrendCategory.GAMING), parseSearchQuery(" gaming "))

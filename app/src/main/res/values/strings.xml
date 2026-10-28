@@ -256,9 +256,11 @@
     <string name="browser_forward">Forward</string>
     <string name="browser_reload">Reload</string>
     <string name="browser_stop">Stop</string>
-    <string name="browser_home">TikTok home</string>
+    <string name="browser_home">Start page</string>
     <string name="browser_add_to_feed">Add video to the TikTok feed</string>
     <string name="browser_open_external">Open in external browser</string>
     <string name="browser_blocked">%1$d ads, trackers and banners blocked</string>
     <string name="tiktok_open_browser">Browse TikTok</string>
+    <string name="youtube_web_feed">Web feed</string>
+    <string name="youtube_open_web_feed">Open YouTube Shorts web feed</string>
 </resources>

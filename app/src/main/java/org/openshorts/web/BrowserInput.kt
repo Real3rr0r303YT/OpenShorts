@@ -5,6 +5,9 @@ import java.net.URLEncoder
 /** Start page of the in-app browser. */
 const val BROWSER_HOME = "https://www.tiktok.com/"
 
+/** YouTube's own Shorts web feed (vertical swipe player), used as a fallback for the native feed. */
+const val YOUTUBE_SHORTS_WEB = "https://www.youtube.com/shorts"
+
 private val DOMAIN_LIKE = Regex("""^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?(/\S*)?$""", RegexOption.IGNORE_CASE)
 
 /**

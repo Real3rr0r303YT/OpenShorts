@@ -22,7 +22,9 @@ fun rankShorts(
 ): List<Video> {
     val playable = videos.filterNot { it.isLive }
     if (!shortsOnly) return playable.sortedByDescending { it.isVertical }
-    val shorts = playable.filter { it.durationSeconds in 1..maxSeconds }
-    val chosen = shorts.ifEmpty { playable.filter { it.durationSeconds in 1..FALLBACK_MAX_SECONDS } }
+    // YouTube search results sometimes carry no length (0 or -1); those are Shorts and must not be dropped.
+    fun fits(video: Video, max: Int) = video.durationSeconds in 1..max || (video.isYouTube && video.durationSeconds <= 0)
+    val shorts = playable.filter { fits(it, maxSeconds) }
+    val chosen = shorts.ifEmpty { playable.filter { fits(it, FALLBACK_MAX_SECONDS) } }
     return chosen.sortedByDescending { it.isVertical } // stable: keeps the server order otherwise
 }

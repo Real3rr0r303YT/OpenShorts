@@ -254,9 +254,11 @@
     <string name="browser_forward">Vor</string>
     <string name="browser_reload">Neu laden</string>
     <string name="browser_stop">Stopp</string>
-    <string name="browser_home">TikTok-Startseite</string>
+    <string name="browser_home">Startseite</string>
     <string name="browser_add_to_feed">Video zum TikTok-Feed hinzufügen</string>
     <string name="browser_open_external">Im externen Browser öffnen</string>
     <string name="browser_blocked">%1$d Werbung, Tracker und Banner blockiert</string>
     <string name="tiktok_open_browser">TikTok durchsuchen</string>
+    <string name="youtube_web_feed">Web-Feed</string>
+    <string name="youtube_open_web_feed">YouTube-Shorts-Web-Feed öffnen</string>
 </resources>

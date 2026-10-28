@@ -72,6 +72,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import org.openshorts.R
 import org.openshorts.data.TrendCategory
 import org.openshorts.web.BROWSER_HOME
+import org.openshorts.web.YOUTUBE_SHORTS_WEB
 import org.openshorts.data.peertube.Video
 
 /** Full-screen vertical video feed: swipe to switch videos, tap to pause, double-tap to like. */
@@ -138,10 +139,12 @@ fun FeedScreen(
                     text = stringResource(R.string.youtube_unavailable),
                     actionLabel = stringResource(R.string.retry),
                     onAction = viewModel::retry,
-                    secondaryLabel = stringResource(R.string.switch_to_peertube),
-                    onSecondary = { viewModel.selectPlatform(FeedPlatform.PEERTUBE) },
-                    tertiaryLabel = stringResource(R.string.youtube_load_direct),
-                    onTertiary = viewModel::enableYouTubeDirect,
+                    secondaryLabel = stringResource(R.string.youtube_open_web_feed),
+                    onSecondary = { onOpenBrowser(YOUTUBE_SHORTS_WEB) },
+                    extras = listOf(
+                        stringResource(R.string.switch_to_peertube) to { viewModel.selectPlatform(FeedPlatform.PEERTUBE) },
+                        stringResource(R.string.youtube_load_direct) to viewModel::enableYouTubeDirect,
+                    ),
                 )
 
             state.videos.isEmpty() && state.content == FeedContent.TikTok && state.endReached ->
@@ -206,6 +209,7 @@ fun FeedScreen(
                 tikTokEnabled = tikTokEnabled,
                 onPasteTikTok = { pasteOpen = true },
                 onOpenBrowser = { onOpenBrowser(BROWSER_HOME) },
+                onOpenYouTubeWeb = { onOpenBrowser(YOUTUBE_SHORTS_WEB) },
                 onSelectPlatform = { platform ->
                     if (platform == viewModel.platform) viewModel.refresh() else viewModel.selectPlatform(platform)
                 },
@@ -374,6 +378,7 @@ private fun FeedHeader(
     tikTokEnabled: Boolean,
     onPasteTikTok: () -> Unit,
     onOpenBrowser: () -> Unit,
+    onOpenYouTubeWeb: () -> Unit,
     onSelectPlatform: (FeedPlatform) -> Unit,
     onSelectTab: (FeedTab) -> Unit,
     onSelectYouTubeCategory: (TrendCategory?) -> Unit,
@@ -417,6 +422,8 @@ private fun FeedHeader(
                                 onClick = { onSelectYouTubeCategory(category) },
                             )
                         }
+                        // YouTube's own Shorts player in the ad-blocking in-app browser.
+                        TabLabel(text = "🌐 " + stringResource(R.string.youtube_web_feed), selected = false, onClick = onOpenYouTubeWeb)
                     } else if (content is FeedContent.TikTok) {
                         TabLabel(text = stringResource(R.string.tiktok_tab_shared), selected = true, onClick = {})
                         TabLabel(text = "+ " + stringResource(R.string.tiktok_paste), selected = false, onClick = onPasteTikTok)
@@ -545,8 +552,8 @@ private fun FeedMessage(
     onAction: () -> Unit,
     secondaryLabel: String? = null,
     onSecondary: () -> Unit = {},
-    tertiaryLabel: String? = null,
-    onTertiary: () -> Unit = {},
+    /** Further actions shown as text buttons. */
+    extras: List<Pair<String, () -> Unit>> = emptyList(),
 ) {
     Column(
         modifier = Modifier
@@ -562,8 +569,8 @@ private fun FeedMessage(
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onSecondary) { Text(secondaryLabel, color = Color.White) }
         }
-        if (tertiaryLabel != null) {
-            TextButton(onClick = onTertiary) { Text(tertiaryLabel, color = Color.White.copy(alpha = 0.85f)) }
+        extras.forEach { (label, action) ->
+            TextButton(onClick = action) { Text(label, color = Color.White.copy(alpha = 0.85f)) }
         }
     }
 }

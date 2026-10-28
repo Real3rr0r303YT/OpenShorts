@@ -80,7 +80,9 @@ import org.openshorts.data.tiktok.videoIdFrom
 import org.openshorts.web.AdBlockWebView
 import org.openshorts.web.AdBlockWebViewClient
 import org.openshorts.web.BROWSER_HOME
+import org.openshorts.web.YOUTUBE_SHORTS_WEB
 import org.openshorts.web.browserTarget
+import org.openshorts.web.isYouTubeUrl
 import org.openshorts.web.displayUrl
 
 /**
@@ -97,6 +99,8 @@ fun BrowserScreen(
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    // "Home" goes back to where the browser was opened: YouTube Shorts or TikTok.
+    val homeUrl = if (isYouTubeUrl(startUrl)) YOUTUBE_SHORTS_WEB else BROWSER_HOME
 
     var webView by remember { mutableStateOf<AdBlockWebView?>(null) }
     var swipe by remember { mutableStateOf<SwipeRefreshLayout?>(null) }
@@ -341,7 +345,7 @@ fun BrowserScreen(
                         contentDescription = stringResource(if (loading) R.string.browser_stop else R.string.browser_reload),
                     )
                 }
-                IconButton(onClick = { webView?.loadUrl(BROWSER_HOME) }) {
+                IconButton(onClick = { webView?.loadUrl(homeUrl) }) {
                     Icon(Icons.Filled.Home, contentDescription = stringResource(R.string.browser_home))
                 }
                 // A TikTok video page can be added to the TikTok feed directly.

@@ -249,8 +249,10 @@ class YouTubeClient(
                 val result = try {
                     Result.success(backend to block(backend))
                 } catch (e: CancellationException) {
+                    // Still report, otherwise the caller would wait for this result forever.
+                    results.trySend(Result.failure(e))
                     throw e
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Result.failure(e)
                 }
                 results.trySend(result)
