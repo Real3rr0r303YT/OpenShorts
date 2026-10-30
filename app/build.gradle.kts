@@ -18,7 +18,7 @@ android {
         versionCode = 10
         versionName = "1.7.1"
 
-        buildConfigField("String", "DONATION_URL", "\"https://buymeacoffee.com/3rr0r303yt\"")
+        buildConfigField("String", "DONATION_URL", "\"https://buymeacoffee.com/3rr0r303YT\"")
         buildConfigField("String", "SOURCE_URL", "\"https://github.com/Real3rr0r303YT/OpenShorts\"")
         buildConfigField("String", "DEFAULT_INSTANCE", "\"https://framatube.org\"")
     }

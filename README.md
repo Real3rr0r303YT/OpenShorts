@@ -8,7 +8,7 @@ no analytics SDKs. Videos are fetched anonymously over HTTPS from the instance *
 
 [![Build](https://github.com/Real3rr0r303YT/OpenShorts/actions/workflows/build.yml/badge.svg)](https://github.com/Real3rr0r303YT/OpenShorts/actions/workflows/build.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Buy Me a Coffee](https://img.shields.io/badge/Support-OpenShorts-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/3rr0r303yt)
+[![Buy Me a Coffee](https://img.shields.io/badge/Support-OpenShorts-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/3rr0r303YT)
 
 ---
 
@@ -17,7 +17,7 @@ no analytics SDKs. Videos are fetched anonymously over HTTPS from the instance *
 OpenShorts is built in spare time and will always be free and ad-free.
 If you like the project, you can support its development here:
 
-### 👉 **[buymeacoffee.com/3rr0r303yt](https://buymeacoffee.com/3rr0r303yt)**
+### 👉 **[buymeacoffee.com/3rr0r303YT](https://buymeacoffee.com/3rr0r303YT)**
 
 The same link is available inside the app under **Settings → Support OpenShorts**.
 
@@ -236,6 +236,6 @@ See [LICENSE](LICENSE) for the full text.
 ---
 
 <p align="center">
-  Made with ❤️ for an open, decentralized web ·
-  <a href="https://buymeacoffee.com/3rr0r303yt"><b>Support OpenShorts</b></a>
+  Made by <a href="https://github.com/Real3rr0r303YT"><b>Real3rr0r303YT</b></a> with ❤️ for an open, decentralized web ·
+  <a href="https://buymeacoffee.com/3rr0r303YT"><b>Support OpenShorts</b></a>
 </p>

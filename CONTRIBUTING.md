@@ -47,4 +47,4 @@ see [SECURITY.md](SECURITY.md).
 ## Supporting the project
 
 Not a coder? You can still help by testing, translating, spreading the word or
-[buying the developer a coffee](https://buymeacoffee.com/3rr0r303yt). ☕
+[buying the developer a coffee](https://buymeacoffee.com/3rr0r303YT). ☕

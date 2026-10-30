@@ -4,7 +4,7 @@ OpenShorts is made possible by these open-source projects and communities. Thank
 
 ## Project
 
-- **Real3rr0r303YT** – creator & maintainer · [Support the project](https://buymeacoffee.com/3rr0r303yt)
+- **Real3rr0r303YT** – creator & maintainer · [Support the project](https://buymeacoffee.com/3rr0r303YT)
 - All [contributors](https://github.com/Real3rr0r303YT/OpenShorts/graphs/contributors)
 
 ## Libraries
