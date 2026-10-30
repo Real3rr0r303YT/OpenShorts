@@ -150,7 +150,7 @@ jobs:
           Built publicly by GitHub Actions from commit ${GITHUB_SHA}.
 
           ### ☕ Support OpenShorts
-          https://buymeacoffee.com/3rr0r303yt
+          https://buymeacoffee.com/3rr0r303YT
           NOTES
 
       - name: Upload release assets
